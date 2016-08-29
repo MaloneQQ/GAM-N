@@ -472,7 +472,7 @@ gam version
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
-gam csv <FileName>|- [charset <Charset>] [matchfield <FieldName> <RegularExpression>] gam <GAM argument list>
+gam csv <FileName>|- [charset <Charset>] gam <GAM argument list>
 
 gam oauth|oauth2 create|request
 gam oauth|oauth2 delete|revoke
