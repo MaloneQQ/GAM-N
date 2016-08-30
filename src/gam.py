@@ -11304,6 +11304,8 @@ def getSendAsAttributes(myarg, body, tagReplacements):
     body[u'displayName'] = getString(OB_NAME)
   elif myarg == u'replyto':
     body[u'replyToAddress'] = getEmailAddress(noUid=True)
+  elif myarg == u'default':
+    body[u'isDefault'] = True
   elif myarg == u'treatasalias':
     body[u'treatAsAlias'] = getBoolean()
   else:
@@ -11326,8 +11328,6 @@ def addUpdateSendAs(users, addCmd):
         signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
       else:
         signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
-    elif myarg == u'default':
-      body[u'isDefault'] = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
   if signature != None:
