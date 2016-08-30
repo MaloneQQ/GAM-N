@@ -7602,8 +7602,8 @@ def doPrintCourseParticipants():
       showMembers = getChoice([u'all', u'students', u'teachers'])
     else:
       unknownArgumentExit()
-  sys.stderr.write(u'Retrieving courses for organization (may take some time for large accounts)...\n')
   if len(courses) == 0:
+    sys.stderr.write(u'Retrieving courses for organization (may take some time for large accounts)...\n')
     page_message = u'Got %%num_items%% courses...\n'
     all_courses = callGAPIpages(croom.courses(), u'list', u'courses', page_message=page_message, teacherId=teacherId, studentId=studentId)
     for course in all_courses:
