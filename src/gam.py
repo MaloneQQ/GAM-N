@@ -5600,7 +5600,7 @@ def doUpdateGroup():
     sys.stderr.write(u'Need to add %s %s and remove %s.\n' % (len(to_add), role, len(to_remove)))
     items = []
     for user_email in to_add:
-      items.append()
+      items.append([u'update', u'group', group, u'add', role, user_email])
     for user_email in to_remove:
       items.append([u'update', u'group', group, u'remove', user_email])
     run_batch(items, len(items))
@@ -10353,6 +10353,7 @@ def showLabels(users):
   i = 0
   count = len(users)
   for user in users:
+    i += 1
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
