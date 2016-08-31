@@ -2738,14 +2738,14 @@ def convertEmailToUserID(user):
     return user
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   try:
-    return callGAPI(cd.users(), u'get', throw_reasons=[u'notFound', u'forbidden'], userKey=user, fields=u'id')[u'id']
+    return callGAPI(cd.users(), u'get', throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN], userKey=user, fields=u'id')[u'id']
   except (GAPI_notFound, GAPI_forbidden):
     usageErrorExit(u'No such user {0}'.format(user))
 
 def convertUserIDtoEmail(uid):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   try:
-    return callGAPI(cd.users(), u'get', throw_reasons=[u'notFound'], userKey=uid, fields=u'primaryEmail')[u'primaryEmail']
+    return callGAPI(cd.users(), u'get', throw_reasons=[GAPI_NOT_FOUND], userKey=uid, fields=u'primaryEmail')[u'primaryEmail']
   except GAPI_notFound:
     return u'uid:{0}'.format(uid)
 #
@@ -2759,7 +2759,7 @@ def splitEmailAddressOrUID(emailAddressOrUID):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   try:
     result = callGAPI(cd, u'get',
-                      throw_reasons=[u'userNotFound'],
+                      throw_reasons=[GAPI_USER_NOT_FOUND],
                       userKey=normalizedEmailAddressOrUID, fields=u'primaryEmail')
     normalizedEmailAddressOrUID = result[u'primaryEmail'].lower()
     atLoc = normalizedEmailAddressOrUID.find(u'@')
@@ -2775,7 +2775,7 @@ def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
     try:
       cd = buildGAPIObject(GAPI_DIRECTORY_API)
       result = callGAPI(cd.users(), u'get',
-                        throw_reasons=[u'userNotFound'],
+                        throw_reasons=[GAPI_USER_NOT_FOUND],
                         userKey=cg.group(1), fields=u'primaryEmail')
       if u'primaryEmail' in result:
         return result[u'primaryEmail'].lower()
@@ -3566,7 +3566,7 @@ def doWhatIs():
   if not show_info:
     checkForExtraneousArguments()
   try:
-    user_or_alias = callGAPI(cd.users(), u'get', throw_reasons=[u'notFound', u'badRequest', u'invalid'], userKey=email, fields=u'primaryEmail')
+    user_or_alias = callGAPI(cd.users(), u'get', throw_reasons=[GAPI_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_INVALID], userKey=email, fields=u'primaryEmail')
     if user_or_alias[u'primaryEmail'].lower() == email.lower():
       sys.stderr.write(u'%s is a user\n\n' % email)
       if show_info:
@@ -3581,7 +3581,7 @@ def doWhatIs():
     sys.stderr.write(u'%s is not a user...\n' % email)
     sys.stderr.write(u'%s is not a user alias...\n' % email)
   try:
-    group = callGAPI(cd.groups(), u'get', throw_reasons=[u'notFound', u'badRequest'], groupKey=email, fields=u'email')
+    group = callGAPI(cd.groups(), u'get', throw_reasons=[GAPI_NOT_FOUND, GAPI_BAD_REQUEST], groupKey=email, fields=u'email')
   except (GAPI_notFound, GAPI_badRequest):
     sys.stderr.write(u'%s is not a group either!\n\nDoesn\'t seem to exist!\n\n' % email)
     sys.exit(1)
@@ -3664,7 +3664,7 @@ def showReport():
     while True:
       try:
         page_message = u'Got %%num_items%% users\n'
-        usage = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports', page_message=page_message, throw_reasons=[u'invalid'],
+        usage = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports', page_message=page_message, throw_reasons=[GAPI_INVALID],
                               date=try_date, userKey=userKey, customerId=customerId, filters=filters, parameters=parameters)
         break
       except GAPI_invalid as e:
@@ -3693,7 +3693,7 @@ def showReport():
   elif report == REPORT_CUSTOMER:
     while True:
       try:
-        usage = callGAPIpages(rep.customerUsageReports(), u'get', u'usageReports', throw_reasons=[u'invalid'],
+        usage = callGAPIpages(rep.customerUsageReports(), u'get', u'usageReports', throw_reasons=[GAPI_INVALID],
                               customerId=customerId, date=try_date, parameters=parameters)
         break
       except GAPI_invalid as e:
@@ -3968,7 +3968,7 @@ def getOrgUnitId(cd):
     return (orgUnit, orgUnit[3:])
   try:
     result = callGAPI(cd.orgunits(), u'get',
-                      throw_reasons=[u'invalidOrgunit', u'orgunitNotFound', u'backendError'],
+                      throw_reasons=[GAPI_INVALID_ORGUNIT, GAPI_ORGUNIT_NOT_FOUND, GAPI_BACKEND_ERROR],
                       customerId=GC_Values[GC_CUSTOMER_ID], orgUnitPath=makeOrgUnitPathRelative(orgUnit),
                       fields=u'orgUnitId')
     return (orgUnit, result[u'orgUnitId'][3:])
@@ -4369,7 +4369,7 @@ def doUpdateOrg():
         user = normalizeEmailAddressOrUID(user)
         sys.stderr.write(u' moving %s to %s%s\n' % (user, orgUnitPath, currentCount(i, count)))
         try:
-          callGAPI(cd.users(), u'patch', throw_reasons=[u'conditionNotMet'], userKey=user, body={u'orgUnitPath': orgUnitPath})
+          callGAPI(cd.users(), u'patch', throw_reasons=[GAPI_CONDITION_NOT_MET], userKey=user, body={u'orgUnitPath': orgUnitPath})
         except GAPI_conditionNotMet:
           pass
     else:
@@ -4516,7 +4516,7 @@ def doCreateAlias():
     callGAPI(cd.groups().aliases(), u'insert', groupKey=targetKey, body=body)
   elif target_type == u'target':
     try:
-      callGAPI(cd.users().aliases(), u'insert', throw_reasons=[u'invalid', u'badRequest'], userKey=targetKey, body=body)
+      callGAPI(cd.users().aliases(), u'insert', throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST], userKey=targetKey, body=body)
     except (GAPI_invalid, GAPI_badRequest):
       callGAPI(cd.groups().aliases(), u'insert', groupKey=targetKey, body=body)
 
@@ -4528,7 +4528,7 @@ def doUpdateAlias():
   checkForExtraneousArguments()
   body = {u'alias': alias}
   try:
-    callGAPI(cd.users().aliases(), u'delete', throw_reasons=[u'invalid'], userKey=alias, alias=alias)
+    callGAPI(cd.users().aliases(), u'delete', throw_reasons=[GAPI_INVALID], userKey=alias, alias=alias)
   except GAPI_invalid:
     callGAPI(cd.groups().aliases(), u'delete', groupKey=alias, alias=alias)
   if target_type == u'user':
@@ -4537,7 +4537,7 @@ def doUpdateAlias():
     callGAPI(cd.groups().aliases(), u'insert', groupKey=target_email, body=body)
   elif target_type == u'target':
     try:
-      callGAPI(cd.users().aliases(), u'insert', throw_reasons=[u'invalid'], userKey=target_email, body=body)
+      callGAPI(cd.users().aliases(), u'insert', throw_reasons=[GAPI_INVALID], userKey=target_email, body=body)
     except GAPI_invalid:
       callGAPI(cd.groups().aliases(), u'insert', groupKey=target_email, body=body)
   print u'updated alias %s' % alias
@@ -4554,7 +4554,7 @@ def doDeleteAlias(alias_email=None):
   print u"Deleting alias %s" % alias_email
   if targetType != u'group':
     try:
-      callGAPI(cd.users().aliases(), u'delete', throw_reasons=[u'invalid', u'badRequest', u'notFound'], userKey=alias_email, alias=alias_email)
+      callGAPI(cd.users().aliases(), u'delete', throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST, GAPI_NOT_FOUND], userKey=alias_email, alias=alias_email)
       return
     except (GAPI_invalid, GAPI_badRequest, GAPI_notFound) as e:
       error = json.loads(e.content)
@@ -4576,7 +4576,7 @@ def doInfoAlias(alias_email=None):
     else:
       unknownArgumentExit()
   try:
-    result = callGAPI(cd.users(), u'get', throw_reasons=[u'invalid', u'badRequest'], userKey=alias_email)
+    result = callGAPI(cd.users(), u'get', throw_reasons=[GAPI_INVALID, GAPI_BAD_REQUEST], userKey=alias_email)
   except (GAPI_invalid, GAPI_badRequest):
     result = callGAPI(cd.groups(), u'get', groupKey=alias_email)
   print u' Alias Email: %s' % alias_email
@@ -5552,7 +5552,7 @@ def doCreateGroup():
   callGAPI(cd.groups(), u'insert', body=body, fields=u'email')
   if gs_body:
     gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
-    callGAPI(gs.groups(), u'patch', retry_reasons=[u'serviceLimit'], groupUniqueId=body[u'email'], body=gs_body)
+    callGAPI(gs.groups(), u'patch', retry_reasons=[GAPI_SERVICE_LIMIT], groupUniqueId=body[u'email'], body=gs_body)
 
 UPDATE_GROUP_SUBCMDS = [u'add', u'clear', u'delete', u'remove', u'sync', u'update']
 
@@ -5585,7 +5585,7 @@ def doUpdateGroup():
       group = cd_result[u'email']
     if gs_body:
       gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
-      callGAPI(gs.groups(), u'patch', retry_reasons=[u'serviceLimit'], groupUniqueId=group, body=gs_body)
+      callGAPI(gs.groups(), u'patch', retry_reasons=[GAPI_SERVICE_LIMIT], groupUniqueId=group, body=gs_body)
     print u'updated group %s' % group
   elif myarg == u'add':
     role = ROLE_MEMBER
@@ -5729,7 +5729,7 @@ def doInfoGroup(group_name=None):
   basic_info = callGAPI(cd.groups(), u'get', groupKey=group_name, fields=cdfieldsList)
   if getSettings:
     try:
-      settings = callGAPI(gs.groups(), u'get', retry_reasons=[u'serviceLimit'], throw_reasons=u'authError',
+      settings = callGAPI(gs.groups(), u'get', throw_reasons=[GAPI_AUTH_ERROR], retry_reasons=[GAPI_SERVICE_LIMIT],
                           groupUniqueId=basic_info[u'email'], fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
     except GAPI_authError:
       pass
@@ -5909,7 +5909,7 @@ def doPrintGroups():
       sys.stderr.write(u" Retrieving Settings for group %s%s...\r\n" % (groupEmail, currentCount(i, count)))
       gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
       settings = callGAPI(gs.groups(), u'get',
-                          retry_reasons=[u'serviceLimit'],
+                          retry_reasons=[GAPI_SERVICE_LIMIT],
                           groupUniqueId=groupEmail, fields=gsfields)
       for key in settings:
         if key in [u'email', u'name', u'description', u'kind', u'etag']:
@@ -6004,7 +6004,7 @@ def doPrintGroupMembers():
         if member[u'type'] == u'USER':
           try:
             mbinfo = callGAPI(cd.users(), u'get',
-                              throw_reasons=[u'userNotFound', u'forbidden'],
+                              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN],
                               userKey=member[u'id'], fields=u'name')
             memberName = mbinfo[u'name'][u'fullName']
           except (GAPI_userNotFound, GAPI_forbidden):
@@ -6012,7 +6012,7 @@ def doPrintGroupMembers():
         elif member[u'type'] == u'GROUP':
           try:
             mbinfo = callGAPI(cd.groups(), u'get',
-                              throw_reasons=[u'notFound', u'forbidden'],
+                              throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN],
                               groupKey=member[u'id'], fields=u'name')
             memberName = mbinfo[u'name']
           except (GAPI_notFound, GAPI_forbidden):
@@ -6046,7 +6046,7 @@ def doPrintLicenses(return_list=False, skus=None):
     for skuId in skus:
       page_message = u'Got %%%%total_items%%%% Licenses for %s...\n' % skuId
       try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items', throw_reasons=[u'invalid', u'forbidden'], page_message=page_message,
+        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items', page_message=page_message, throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
                                   customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[skuId], skuId=skuId, fields=u'items(productId,skuId,userId),nextPageToken')
       except (GAPI_invalid, GAPI_forbidden):
         pass
@@ -6054,7 +6054,7 @@ def doPrintLicenses(return_list=False, skus=None):
     for productId in products:
       page_message = u'Got %%%%total_items%%%% Licenses for %s...\n' % productId
       try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items', throw_reasons=[u'invalid', u'forbidden'], page_message=page_message,
+        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items', page_message=page_message, throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
                                   customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'items(productId,skuId,userId),nextPageToken')
       except (GAPI_invalid, GAPI_forbidden):
         pass
@@ -6288,7 +6288,7 @@ def doCreateOrUpdateUserSchema(updateCmd):
   schemaKey = getString(OB_SCHEMA_NAME)
   if updateCmd:
     try:
-      body = callGAPI(cd.schemas(), u'get', throw_reasons=[u'notFound'], customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey)
+      body = callGAPI(cd.schemas(), u'get', throw_reasons=[GAPI_NOT_FOUND], customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey)
     except GAPI_notFound:
       print u'ERROR: Schema %s does not exist.' % schemaKey
       sys.exit(3)
@@ -7263,7 +7263,7 @@ def updateSiteVerification():
   checkForExtraneousArguments()
   body = {u'site':{u'type':verify_type, u'identifier':identifier}, u'verificationMethod':verificationMethod}
   try:
-    verify_result = callGAPI(verif.webResource(), u'insert', throw_reasons=[u'badRequest'], verificationMethod=verificationMethod, body=body)
+    verify_result = callGAPI(verif.webResource(), u'insert', throw_reasons=[GAPI_BAD_REQUEST], verificationMethod=verificationMethod, body=body)
   except GAPI_badRequest as e:
     error = json.loads(e.content)
     message = error[u'error'][u'errors'][0][u'message']
@@ -7345,7 +7345,7 @@ def doDeleteGuardian():
   studentId = getEmailAddress()
   checkForExtraneousArguments()
   try:
-    callGAPI(croom.userProfiles().guardians(), u'delete', throw_reasons=[u'notFound'], studentId=studentId, guardianId=guardianId)
+    callGAPI(croom.userProfiles().guardians(), u'delete', throw_reasons=[GAPI_NOT_FOUND], studentId=studentId, guardianId=guardianId)
     print u'Deleted %s as a guardian of %s' % (guardianId, studentId)
   except GAPI_notFound:
     # See if there's a pending invitation
@@ -7487,7 +7487,7 @@ def doInfoCourse():
   teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers', courseId=courseId)
   students = callGAPIpages(croom.courses().students(), u'list', u'students', courseId=courseId)
   try:
-    aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases', throw_reasons=[u'notImplemented'], courseId=courseId)
+    aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases', throw_reasons=[GAPI_NOT_IMPLEMENTED], courseId=courseId)
   except GAPI_notImplemented:
     aliases = []
   if aliases:
@@ -8206,7 +8206,7 @@ def showBackupCodes(users):
     i += 1
     user = normalizeEmailAddressOrUID(user)
     try:
-      codes = callGAPIitems(cd.verificationCodes(), u'list', u'items', throw_reasons=[u'invalidArgument', u'invalid'], userKey=user)
+      codes = callGAPIitems(cd.verificationCodes(), u'list', u'items', throw_reasons=[GAPI_INVALID_ARGUMENT, GAPI_INVALID], userKey=user)
     except (GAPI_invalidArgument, GAPI_invalid):
       codes = []
     _showBackupCodes(user, codes, i, count)
@@ -8229,7 +8229,7 @@ def deleteBackupCodes(users):
   for user in users:
     user = normalizeEmailAddressOrUID(user)
     try:
-      callGAPI(cd.verificationCodes(), u'invalidate', soft_errors=True, throw_reasons=[u'invalid',], userKey=user)
+      callGAPI(cd.verificationCodes(), u'invalidate', soft_errors=True, throw_reasons=[GAPI_INVALID], userKey=user)
     except GAPI_invalid:
       print u'No 2SV backup codes for %s' % user
       continue
@@ -9866,7 +9866,7 @@ def getPhoto(users):
     filename = os.path.join(targetFolder, u'{0}.jpg'.format(user))
     print u"Saving photo to %s%s" % (filename, currentCount(i, count))
     try:
-      photo = callGAPI(cd.users().photos(), u'get', throw_reasons=[u'notFound'], userKey=user)
+      photo = callGAPI(cd.users().photos(), u'get', throw_reasons=[GAPI_NOT_FOUND], userKey=user)
     except GAPI_notFound:
       print u' no photo for %s' % user
       continue
@@ -10019,7 +10019,7 @@ def deprovisionUser(users):
       print u'  No ASPs'
     print u'Invalidating 2SV Backup Codes for %s%s' % (user, currentCount(i, count))
     try:
-      callGAPI(cd.verificationCodes(), u'invalidate', soft_errors=True, throw_reasons=[u'invalid'], userKey=user)
+      callGAPI(cd.verificationCodes(), u'invalidate', soft_errors=True, throw_reasons=[GAPI_INVALID], userKey=user)
     except GAPI_invalid:
       print u'  No 2SV Backup Codes'
     print u'Getting tokens for %s%s' % (user, currentCount(i, count))
@@ -10308,7 +10308,7 @@ def updateLabels(users):
         new_label_name = replace % match_result.groups()
         print u' Renaming "%s" to "%s"' % (label[u'name'], new_label_name)
         try:
-          callGAPI(gmail.users().labels(), u'patch', soft_errors=True, throw_reasons=[u'aborted'], id=label[u'id'], userId=user, body={u'name': new_label_name})
+          callGAPI(gmail.users().labels(), u'patch', soft_errors=True, throw_reasons=[GAPI_ABORTED], id=label[u'id'], userId=user, body={u'name': new_label_name})
         except GAPI_aborted:
           if merge:
             print u'  Merging %s label to existing %s label' % (label[u'name'], new_label_name)
