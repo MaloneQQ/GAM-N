@@ -17,10 +17,25 @@ If an item contains spaces, it should be surrounded by " or '.
 <TrueValues> ::= true|on|yes|enabled|1
 <FalseValues>= false|off|no|disabled|0
 <DataTransferService> ::= googleplus|google+|gplus|g+|googledrive|gdrive|drive
-<ProductID> ::= Google-Apps|Google-Coordinate|Google-Drive-storage|Google-Vault
-<SKUID> ::= apps|gafb|gafw|gams|gau|unlimited|d4w|dfw|coordinate|vault|vfe|
-	    drive-20gb|drive20gb|20gb|drive-50gb|drive50gb|50gb|drive-200gb|drive200gb|200gb|drive-400gb|drive400gb|400gb|
-	    drive-1tb|drive1tb|1tb|drive-2tb|drive2tb|2tb|drive-4tb|drive4tb|4tb|drive-8tb|drive8tb|8tb|drive-16tb|drive16tb|16tb
+<ProductID> ::= Google-Apps|Google-Drive-storage|Google-Vault|Google-Coordinate
+<SKUID> ::=
+	apps|gafb|gafw|Google-Apps-For-Business|
+	gams|Google-Apps-For-Postini|
+	gau|unlimited|d4w|dfw|Google-Apps-Unlimited|
+	lite|Google-Apps-Lite|
+	drive-20gb|drive20gb|20gb|Google-Drive-storage-20GB|
+	drive-50gb|drive50gb|50gb|Google-Drive-storage-50GB|
+	drive-200gb|drive200gb|200gb|Google-Drive-storage-200GB|
+	drive-400gb|drive400gb|400gb|Google-Drive-storage-400GB|
+	drive-1tb|drive1tb|1tb|Google-Drive-storage-1TB|
+	drive-2tb|drive2tb|2tb|Google-Drive-storage-2TB|
+	drive-4tb|drive4tb|4tb|Google-Drive-storage-4TB|
+	drive-8TB|drive8TB|8TB|Google-Drive-storage-8TB|
+	drive-16tb|drive16tb|16tb|Google-Drive-storage-16TB|
+	vault|Google-Vault|
+	vfe|Google-Vault-Former_Employee|
+	coordinate|Google-Coordinate
+
 <Charset> ::= ascii|mbcs|utf-8|utf-8-sig|utf-16|<String>
 <FileFormat> ::= csv|html|txt|tsv|jpeg|jpg|png|svg|pdf|rtf|pptx|xlsx|docx|odt|ods|openoffice|ms|microsoft|micro$oft
 <Language> ::= ar|bn|bg|ca|zh-CN|zh-TW|hr|cs|da|nl|en|en-GB|et|fi|fr|de|el|gu|iw|is|in|it|ja|kn|ko|lv|lt|ms|ml|mr|no|or|fa|pl|pt-BR|pt-PT|ro|ru|sr|sk|sl|es|sv|tl|ta|te|th|tr|uk|ur|vi
