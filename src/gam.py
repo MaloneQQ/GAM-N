@@ -1106,12 +1106,12 @@ def getColorHexAttribute():
     invalidArgumentExit(COLORHEX_FORMAT_REQUIRED)
   missingArgumentExit(COLORHEX_FORMAT_REQUIRED)
 
-def cleanCourseId(courseId):
+def removeCourseIdScope(courseId):
   if courseId.startswith(u'd:'):
     return courseId[2:]
   return courseId
 
-def normalizeCourseId(courseId):
+def addCourseIdScope(courseId):
   if not courseId.isdigit() and courseId[:2] != u'd:':
     return u'd:{0}'.format(courseId)
   return courseId
@@ -1122,7 +1122,7 @@ def getCourseId():
     courseId = CL_argv[CL_argvI]
     if courseId:
       CL_argvI += 1
-      return normalizeCourseId(courseId)
+      return addCourseIdScope(courseId)
   missingArgumentExit(OB_COURSE_ID)
 
 def getCourseAlias():
@@ -6007,6 +6007,7 @@ def doPrintGroupMembers():
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [u'Google-Apps', u'Google-Vault']
+  skus = []
   licenses = []
   titles = [u'userId', u'productId', u'skuId']
   csvRows = []
@@ -6775,6 +6776,7 @@ def doInfoUser(user_email=None):
   projection = u'full'
   fieldsList = []
   customFieldMask = viewType = None
+  products = []
   skus = [u'Google-Apps-For-Business', u'Google-Apps-Unlimited', u'Google-Apps-For-Postini',
           u'Google-Apps-Lite', u'Google-Vault', u'Google-Vault-Former-Employee']
   while CL_argvI < CL_argvLen:
@@ -6785,8 +6787,12 @@ def doInfoUser(user_email=None):
       getGroups = False
     elif myarg in [u'nolicenses', u'nolicences']:
       getLicenses = False
+    elif myarg in [u'products', u'product']:
+      products = getGoogleProductListMap()
+      skus = []
     elif myarg in [u'sku', u'skus']:
       skus = getGoogleSKUListMap()
+      products = []
     elif myarg == u'noschemas':
       getSchemas = False
       projection = u'basic'
@@ -6978,10 +6984,30 @@ def doInfoUser(user_email=None):
     lic = buildGAPIObject(GAPI_LICENSING_API)
     for skuId in skus:
       try:
-        result = callGAPI(lic.licenseAssignments(), u'get', throw_reasons=[u'notFound', u'invalid', u'forbidden'], userId=user_email, productId=GOOGLE_SKUS[skuId], skuId=skuId)
-      except (GAPI_notFound, GAPI_invalid, GAPI_forbidden):
+        result = callGAPI(lic.licenseAssignments(), u'get',
+                          throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
+                          userId=user_email, productId=GOOGLE_SKUS[skuId], skuId=skuId)
+        print u' %s' % result[u'skuId']
+      except GAPI_notFound:
         continue
-      print u' %s' % result[u'skuId']
+      except (GAPI_userNotFound, GAPI_forbidden):
+        break
+    badUser = False
+    for productId in products:
+      for skuId in GOOGLE_SKUS:
+        if GOOGLE_SKUS[skuId] == productId:
+          try:
+            result = callGAPI(lic.licenseAssignments(), u'get',
+                              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
+                              userId=user_email, productId=productId, skuId=skuId)
+            print u' %s' % result[u'skuId']
+          except GAPI_notFound:
+            continue
+          except (GAPI_userNotFound, GAPI_forbidden):
+            badUser = True
+            break
+      if badUser:
+        break
 
 USER_ARGUMENT_TO_PROPERTY_MAP = {
   u'address': [u'addresses',],
@@ -7522,14 +7548,13 @@ PARTICIPANT_ENTITY_NAME_MAP = {
 
 def doCourseAddParticipant(courseId):
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
-  cleanedCourseId = cleanCourseId(courseId)
+  noScopeCourseId = removeCourseIdScope(courseId)
   participant_type = getChoice(ADD_REMOVE_PARTICIPANT_TYPES_MAP, mapChoice=True)
   if participant_type == u'alias':
-    service = croom.courses().aliases()
-    body = {u'alias': normalizeCourseId(getString(OB_COURSE_ALIAS))}
+    body = {u'alias': addCourseIdScope(getString(OB_COURSE_ALIAS))}
     checkForExtraneousArguments()
-    callGAPI(service, u'create', courseId=courseId, body=body)
-    print u'Added %s as a %s of course %s' % (cleanCourseId(body[u'alias']), participant_type, cleanedCourseId)
+    callGAPI(croom.courses().aliases(), u'create', courseId=courseId, body=body)
+    print u'Added %s as an %s of course %s' % (removeCourseIdScope(body[u'alias']), participant_type, noScopeCourseId)
   else:
     body = {u'userId': getEmailAddress()}
     checkForExtraneousArguments()
@@ -7538,27 +7563,26 @@ def doCourseAddParticipant(courseId):
     else:
       service = croom.courses().students()
     callGAPI(service, u'create', courseId=courseId, body=body)
-    print u'Added %s as a %s of course %s' % (body[u'userId'], participant_type, cleanedCourseId)
+    print u'Added %s as a %s of course %s' % (body[u'userId'], participant_type, noScopeCourseId)
 
 def doCourseRemoveParticipant(courseId):
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
-  cleanedCourseId = cleanCourseId(courseId)
+  noScopeCourseId = removeCourseIdScope(courseId)
   participant_type = getChoice(ADD_REMOVE_PARTICIPANT_TYPES_MAP, mapChoice=True)
   if participant_type == u'alias':
-    service = croom.courses().aliases()
-    kwargs = {u'alias': normalizeCourseId(getString(OB_COURSE_ALIAS))}
+    alias = addCourseIdScope(getString(OB_COURSE_ALIAS))
     checkForExtraneousArguments()
-    callGAPI(service, u'delete', courseId=courseId, **kwargs)
-    print u'Removed %s as a %s of course %s' % (kwargs[u'alias'], participant_type, cleanedCourseId)
+    callGAPI(croom.courses().aliases(), u'delete', courseId=courseId, alias=alias)
+    print u'Removed %s as an %s of course %s' % (removeCourseIdScope(alias), participant_type, noScopeCourseId)
   else:
-    kwargs = {u'userId': getEmailAddress()}
+    userId = getEmailAddress()
     checkForExtraneousArguments()
     if participant_type == u'teacher':
       service = croom.courses().teachers()
     else:
       service = croom.courses().students()
-    callGAPI(service, u'delete', courseId=courseId, **kwargs)
-    print u'Removed %s as a %s of course %s' % (kwargs[u'userId'], participant_type, cleanedCourseId)
+    callGAPI(service, u'delete', courseId=courseId, userId=userId)
+    print u'Removed %s as a %s of course %s' % (userId, participant_type, noScopeCourseId)
 
 def doCourseSyncParticipants(courseId):
   participant_type = getChoice(SYNC_PARTICIPANT_TYPES_MAP, mapChoice=True)
@@ -10010,7 +10034,8 @@ def printShowGmailProfile(users, csvFormat):
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
-    sys.stderr.write(u'Getting Gmail profile for %s\n' % user)
+    if csvFormat:
+      sys.stderr.write(u'Getting Gmail profile for %s\n' % user)
     try:
       results = callGAPI(gmail.users(), u'getProfile',
                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
