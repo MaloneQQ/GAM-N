@@ -6007,6 +6007,7 @@ def doPrintGroupMembers():
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [u'Google-Apps', u'Google-Vault']
+  skus = []
   licenses = []
   titles = [u'userId', u'productId', u'skuId']
   csvRows = []
@@ -7529,7 +7530,7 @@ def doCourseAddParticipant(courseId):
     body = {u'alias': normalizeCourseId(getString(OB_COURSE_ALIAS))}
     checkForExtraneousArguments()
     callGAPI(service, u'create', courseId=courseId, body=body)
-    print u'Added %s as a %s of course %s' % (cleanCourseId(body[u'alias']), participant_type, cleanedCourseId)
+    print u'Added %s as an %s of course %s' % (cleanCourseId(body[u'alias']), participant_type, cleanedCourseId)
   else:
     body = {u'userId': getEmailAddress()}
     checkForExtraneousArguments()
@@ -7549,7 +7550,7 @@ def doCourseRemoveParticipant(courseId):
     kwargs = {u'alias': normalizeCourseId(getString(OB_COURSE_ALIAS))}
     checkForExtraneousArguments()
     callGAPI(service, u'delete', courseId=courseId, **kwargs)
-    print u'Removed %s as a %s of course %s' % (kwargs[u'alias'], participant_type, cleanedCourseId)
+    print u'Removed %s as an %s of course %s' % (kwargs[u'alias'], participant_type, cleanedCourseId)
   else:
     kwargs = {u'userId': getEmailAddress()}
     checkForExtraneousArguments()
@@ -10010,7 +10011,8 @@ def printShowGmailProfile(users, csvFormat):
     user, gmail = buildGmailGAPIObject(user)
     if not gmail:
       continue
-    sys.stderr.write(u'Getting Gmail profile for %s\n' % user)
+    if csvFormat:
+      sys.stderr.write(u'Getting Gmail profile for %s\n' % user)
     try:
       results = callGAPI(gmail.users(), u'getProfile',
                          throw_reasons=GAPI_GMAIL_THROW_REASONS,
