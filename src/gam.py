@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Jay Lee <jay0lee@gmail.com>'
-__version__ = u'3.72'
+__version__ = u'3.73'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -3218,45 +3218,60 @@ def doBatch():
 def doAutoBatch(CL_entityType, CL_entityList, CL_command):
   items = [[CL_entityType, entity, CL_command]+CL_argv[CL_argvI:] for entity in CL_entityList]
   run_batch(items, len(items))
-#
+
 # Process command line arguments, find substitutions
+# An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
+# For example, ~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~ would replace foo@bar.com (from the primaryEmail column) with foo AT bar.com
 # An argument containing instances of ~~xxx~~ has xxx replaced by the value of field xxx from the CSV file
 # An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
 # Otherwise, the argument is preserved as is
-#
+
+SUB_PATTERN = re.compile(r'~~(.+?)~~')
+RE_PATTERN = re.compile(r'~~(.+?)~!~(.+?)~!~(.+?)~~')
+SUB_TYPE = u'sub'
+RE_TYPE = u're'
+
 # SubFields is a dictionary; the key is the argument number, the value is a list of tuples that mark
-# the substition (fieldname, start, end).
+# the substition (type, fieldname, start, end). Type is 'sub' for simple substitution, 're' for regex substitution.
 # Example: update user '~User' address type work unstructured '~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~' primary
-# {2: [('User', 0, 5)], 7: [('Street', 0, 10), ('City', 12, 20), ('State', 22, 31), ('ZIP', 32, 39)]}
-#
+# {2: [('sub', 'User', 0, 5)], 7: [('sub', 'Street', 0, 10), ('sub', 'City', 12, 20), ('sub', 'State', 22, 31), ('sub', 'ZIP', 32, 39)]}
 def getSubFields(initial_argv, fieldNames):
   global CL_argvI
   subFields = {}
-  PATTERN = re.compile(r'~~(.+?)~~')
   GAM_argv = initial_argv[:]
   GAM_argvI = len(GAM_argv)
   while CL_argvI < CL_argvLen:
     myarg = CL_argv[CL_argvI]
     if not myarg:
       GAM_argv.append(myarg)
-    elif PATTERN.search(myarg):
+    elif SUB_PATTERN.search(myarg):
       pos = 0
+      subFields.setdefault(GAM_argvI, [])
       while True:
-        match = PATTERN.search(myarg, pos)
-        if not match:
+        submatch = SUB_PATTERN.search(myarg, pos)
+        if not submatch:
           break
-        fieldName = match.group(1)
-        if fieldName in fieldNames:
-          subFields.setdefault(GAM_argvI, [])
-          subFields[GAM_argvI].append((fieldName, match.start(), match.end()))
+        rematch = RE_PATTERN.match(submatch.group(0))
+        if not rematch:
+          fieldName = submatch.group(1)
+          if fieldName not in fieldNames:
+            csvFieldErrorExit(fieldName, fieldNames)
+          subFields[GAM_argvI].append((SUB_TYPE, fieldName, submatch.start(), submatch.end()))
         else:
-          csvFieldErrorExit(fieldName, fieldNames)
-        pos = match.end()
+          fieldName = rematch.group(1)
+          if fieldName not in fieldNames:
+            csvFieldErrorExit(fieldName, fieldNames)
+          try:
+            re.compile(rematch.group(2))
+            subFields[GAM_argvI].append((RE_TYPE, fieldName, submatch.start(), submatch.end(), rematch.group(2), rematch.group(3)))
+          except re.error as e:
+            usageErrorExit(u'{0} {1}: {2}'.format(OB_RE_PATTERN, PHRASE_ERROR, e))
+        pos = submatch.end()
       GAM_argv.append(myarg)
     elif myarg[0] == u'~':
       fieldName = myarg[1:]
       if fieldName in fieldNames:
-        subFields[GAM_argvI] = [(fieldName, 0, len(myarg))]
+        subFields[GAM_argvI] = [(SUB_TYPE, fieldName, 0, len(myarg))]
         GAM_argv.append(myarg)
       else:
         csvFieldErrorExit(fieldName, fieldNames)
@@ -3273,10 +3288,14 @@ def processSubFields(GAM_argv, row, subFields):
     argv[GAM_argvI] = u''
     pos = 0
     for field in fields:
-      argv[GAM_argvI] += oargv[pos:field[1]]
-      if row[field[0]]:
-        argv[GAM_argvI] += row[field[0]]
-      pos = field[2]
+      argv[GAM_argvI] += oargv[pos:field[2]]
+      if field[0] == SUB_TYPE:
+        if row[field[1]]:
+          argv[GAM_argvI] += row[field[1]]
+      else:
+        if row[field[1]]:
+          argv[GAM_argvI] += re.sub(field[4], field[5], row[field[1]])
+      pos = field[3]
     argv[GAM_argvI] += oargv[pos:]
     argv[GAM_argvI] = argv[GAM_argvI].encode(GM_Globals[GM_SYS_ENCODING])
   return argv

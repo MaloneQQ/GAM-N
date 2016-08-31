@@ -9,6 +9,13 @@ In the list of Authorized API clients, locate your Gam Service Account, copy the
 Paste the Client ID into the Client name box as in step 6.iii.c, then do steps 6.iii.d and 6.iii.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.7.
 
+GAM 3.73
+Expanded the options for parameter substitution in gam csv, RE pattern substitution is now available.
+An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
+An argument containing instances of ~~xxx~~ has xxx replaced by the value of field xxx from the CSV file
+An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
+For example, ~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~ would replace foo@bar.com (from the primaryEmail column) with foo AT bar.com
+
 GAM 3.72
 Added products <ProductIDList> argument to gam info user <User> so that licenses for desired products can be shown.
 You can specify products or skus but not both.
