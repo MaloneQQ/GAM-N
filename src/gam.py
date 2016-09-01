@@ -5929,6 +5929,7 @@ MEMBERS_FIELD_NAMES_MAP = {
   u'id': u'id',
   u'name': u'name',
   u'role': u'role',
+  u'status': u'status',
   u'type': u'type',
   u'useremail': u'email',
   }
@@ -5942,7 +5943,7 @@ def doPrintGroupMembers():
   fieldsTitles = {}
   titles = []
   csvRows = []
-  all_groups = []
+  groups_to_get = []
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'domain':
@@ -5957,7 +5958,7 @@ def doPrintGroupMembers():
       membernames = True
     elif myarg == u'group':
       group_email = getEmailAddress()
-      all_groups = [{u'email': group_email}]
+      groups_to_get = [{u'email': group_email}]
     elif myarg in MEMBERS_FIELD_NAMES_MAP:
       myarg = MEMBERS_FIELD_NAMES_MAP[myarg]
       addFieldToCSVfile(myarg, {myarg: [myarg]}, fieldsList, fieldsTitles, titles)
@@ -5984,12 +5985,12 @@ def doPrintGroupMembers():
   if u'group' in fieldsList:
     groupname = True
     fieldsList.remove(u'group')
-  if not all_groups:
-    all_groups = callGAPIpages(cd.groups(), u'list', u'groups', message_attribute=u'email',
-                               customer=customer, domain=usedomain, userKey=usemember, fields=u'nextPageToken,groups(email)')
+  if not groups_to_get:
+    groups_to_get = callGAPIpages(cd.groups(), u'list', u'groups', message_attribute=u'email',
+                                  customer=customer, domain=usedomain, userKey=usemember, fields=u'nextPageToken,groups(email)')
   i = 0
-  count = len(all_groups)
-  for group in all_groups:
+  count = len(groups_to_get)
+  for group in groups_to_get:
     i += 1
     group_email = group[u'email']
     sys.stderr.write(u'Getting members for %s%s\n' % (group_email, currentCount(i, count)))
