@@ -8977,7 +8977,7 @@ def printDriveFileList(users):
     elif myarg == u'query':
       query += u' and %s' % getString(OB_QUERY)
     elif myarg == u'fullquery':
-      query += getString(OB_QUERY)
+      query = getString(OB_QUERY)
     elif myarg == u'allfields':
       fieldsList = []
       allfields = True
