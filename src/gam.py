@@ -5974,7 +5974,7 @@ def doPrintGroupMembers():
     else:
       unknownArgumentExit()
   if not fieldsList:
-    for field in [u'id', u'role', u'group', u'email', u'type']:
+    for field in [u'id', u'role', u'group', u'email', u'type', u'status']:
       addFieldToCSVfile(field, {field: [field]}, fieldsList, fieldsTitles, titles)
     if membernames:
       addTitlesToCSVfile([u'name'], titles)
