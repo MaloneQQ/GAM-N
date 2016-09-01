@@ -6026,7 +6026,6 @@ def doPrintGroupMembers():
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [u'Google-Apps', u'Google-Vault']
-  skus = []
   licenses = []
   titles = [u'userId', u'productId', u'skuId']
   csvRows = []
@@ -6038,8 +6037,10 @@ def doPrintLicenses(return_list=False, skus=None):
         todrive = True
       elif myarg in [u'products', u'product']:
         products = getGoogleProductListMap()
+        skus = []
       elif myarg in [u'sku', u'skus']:
         skus = getGoogleSKUListMap()
+        products = []
       else:
         unknownArgumentExit()
   if skus:
