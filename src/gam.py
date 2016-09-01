@@ -6796,7 +6796,6 @@ def doInfoUser(user_email=None):
   projection = u'full'
   fieldsList = []
   customFieldMask = viewType = None
-  products = []
   skus = [u'Google-Apps-For-Business', u'Google-Apps-Unlimited', u'Google-Apps-For-Postini',
           u'Google-Apps-Lite', u'Google-Vault', u'Google-Vault-Former-Employee']
   while CL_argvI < CL_argvLen:
@@ -6808,11 +6807,11 @@ def doInfoUser(user_email=None):
     elif myarg in [u'nolicenses', u'nolicences']:
       getLicenses = False
     elif myarg in [u'products', u'product']:
-      products = getGoogleProductListMap()
       skus = []
+      for productId in getGoogleProductListMap():
+        skus += [skuId for skuId in GOOGLE_SKUS if GOOGLE_SKUS[skuId] == productId]
     elif myarg in [u'sku', u'skus']:
       skus = getGoogleSKUListMap()
-      products = []
     elif myarg == u'noschemas':
       getSchemas = False
       projection = u'basic'
@@ -7011,22 +7010,6 @@ def doInfoUser(user_email=None):
       except GAPI_notFound:
         continue
       except (GAPI_userNotFound, GAPI_forbidden):
-        break
-    badUser = False
-    for productId in products:
-      for skuId in GOOGLE_SKUS:
-        if GOOGLE_SKUS[skuId] == productId:
-          try:
-            result = callGAPI(lic.licenseAssignments(), u'get',
-                              throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN, GAPI_NOT_FOUND],
-                              userId=user_email, productId=productId, skuId=skuId)
-            print u' %s' % result[u'skuId']
-          except GAPI_notFound:
-            continue
-          except (GAPI_userNotFound, GAPI_forbidden):
-            badUser = True
-            break
-      if badUser:
         break
 
 USER_ARGUMENT_TO_PROPERTY_MAP = {
