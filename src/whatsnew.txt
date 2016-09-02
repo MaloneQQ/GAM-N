@@ -9,6 +9,16 @@ In the list of Authorized API clients, locate your Gam Service Account, copy the
 Paste the Client ID into the Client name box as in step 6.iii.c, then do steps 6.iii.d and 6.iii.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.7.
 
+GAM 3.73.01
+
+The data selector csvfile <FileName>:<FieldName> has been expanded to <FileName>(:<FieldName>)+. This allows you to gather data
+from several columns; the columns do not have to be contiguous. Given the file FourUsers.csv:
+UserA,UserB,UserC,UserD
+user1a@bar.com,user1b@bar.com,user1c@bar.com,user1d@bar.com
+user2a@bar.com,user2b@bar.com,user2c@bar.com,user2d@bar.com
+...
+gam update group group@bar.com sync members csvfile FourUsers.csv:UserA:UserB:UserC:UserD
+
 GAM 3.73
 Expanded the options for parameter substitution in gam csv, RE pattern substitution is now available.
 An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)

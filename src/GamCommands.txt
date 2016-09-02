@@ -364,7 +364,7 @@ If an item contains spaces, it should be surrounded by " or '.
 		(students <CourseID>)|
 		(teachers <CourseID>)|
 		(file <FileName>)|
-		(csvfile <FileName>:<FieldName>)|
+		(csvfile <FileName>(:<FieldName>)+)|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)
 

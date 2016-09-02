@@ -86,7 +86,7 @@ FALSE_VALUES = [FALSE, u'off', u'no', u'disabled', u'0']
 TRUE_FALSE = [TRUE, FALSE]
 usergroup_types = [u'user', u'users', u'group', u'ou', u'org',
                    u'ou_and_children', u'ou_and_child', u'query',
-                   u'license', u'licenses', u'licence', u'licences', u'file', u'csv', u'all',
+                   u'license', u'licenses', u'licence', u'licences', u'file', u'csv', u'csvfile', u'all',
                    u'cros']
 ERROR = u'ERROR'
 ERROR_PREFIX = ERROR+u': '
@@ -545,6 +545,7 @@ OB_ENTITY_TYPE = u'EntityType'
 OB_FIELD_NAME = u'FieldName'
 OB_FIELD_NAME_LIST = "FieldNameList"
 OB_FILE_NAME = u'FileName'
+OB_FILE_NAME_FIELD_NAME = OB_FILE_NAME+u'(:'+OB_FIELD_NAME+u')+'
 OB_FILE_NAME_OR_URL = u'FileName|URL'
 OB_FILE_PATH = u'FilePath'
 OB_FILTER_ID = u'FilterID'
@@ -2870,20 +2871,24 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
     closeFile(f)
   elif entity_type in [u'csv', u'csvfile']:
     try:
-      (filename, column) = entity.split(u':')
+      fileFieldNameList = entity.split(u':')
     except ValueError:
-      filename = column = None
-    if (not filename) or (not column):
-      invalidArgumentExit(u'FileName:FieldName')
-    f = openFile(filename)
-    input_file = csv.DictReader(f, restval=u'')
-    if column not in input_file.fieldnames:
-      csvFieldErrorExit(column, input_file.fieldnames)
+      fileFieldNameList = []
+    if len(fileFieldNameList) < 2:
+      putArgumentBack()
+      invalidArgumentExit(OB_FILE_NAME_FIELD_NAME)
+    f = openFile(fileFieldNameList[0])
+    csvFile = csv.DictReader(f, restval=u'')
+    for fieldName in fileFieldNameList[1:]:
+      if fieldName not in csvFile.fieldnames:
+        putArgumentBack()
+        csvFieldErrorExit(fieldName, csvFile.fieldnames)
     users = []
-    for row in input_file:
-      user = row[column].strip()
-      if user:
-        users.append(user)
+    for row in csvFile:
+      for fieldName in fileFieldNameList[1:]:
+        user = row[fieldName].strip()
+        if user:
+          users.append(user)
     closeFile(f)
   elif entity_type in [u'courseparticipants', u'teachers', u'students']:
     croom = buildGAPIObject(GAPI_CLASSROOM_API)
