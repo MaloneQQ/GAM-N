@@ -1,6 +1,6 @@
 # -*- mode: python -*-
 a = Analysis(['gam.py'],
-             pathex=['C:\\Users\\jlee\\Documents\\GitHub\\GAM'],
+             pathex=['C:\\GAM-N'],
              hiddenimports=[],
              hookspath=None,
              excludes=['_tkinter'],
