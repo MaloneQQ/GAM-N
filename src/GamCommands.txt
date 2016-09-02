@@ -351,7 +351,8 @@ If an item contains spaces, it should be surrounded by " or '.
 # Specify a collection of ChromeOS devices by directly specifying them
 <CrOSTypeEntity> ::=
 		(all cros)|
-		(cros <CrOSList>)|
+		(cros <CrOSList>)
+
 # Specify a collection of Users by directly specifying them or by specifiying items that will yield a list of users
 <UserTypeEntity> ::=
 		(all users)|
@@ -488,9 +489,9 @@ gam version
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
-gam csv <FileName>|- [charset <Charset>] gam <GAM argument list>
+gam csv <FileName>|- [charset <Charset>] gam <GAMArgumentList>
 
-# You can make substitutions in <GAM argument list> with values from the CSV file.
+# You can make substitutions in <GAMArgumentList> with values from the CSV file.
 # An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file
 # An argument containing instances of ~~xxx~~ has xxx replaced by the value of field xxx from the CSV file
 # An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
