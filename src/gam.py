@@ -3116,7 +3116,7 @@ def send_email(msg_subj, msg_txt, msg_rcpt=None):
   msg_raw = base64.urlsafe_b64encode(msg_string)
   callGAPI(gmail.users().messages(), u'send', userId=sender_email, body={u'raw': msg_raw})
 
-def doVersion():
+def doVersion(checkForCheck=True):
   import struct
   print u'GAM {0} - {1}\n{2}\nPython {3}.{4}.{5} {6}-bit {7}\ngoogle-api-python-client {8}\n{9} {10}\nPath: {11}'.format(__version__, GAM_URL,
                                                                                                                          __author__,
@@ -3125,9 +3125,16 @@ def doVersion():
                                                                                                                          googleapiclient.__version__,
                                                                                                                          platform.platform(), platform.machine(),
                                                                                                                          GM_Globals[GM_GAM_PATH])
+  if checkForCheck:
+    while CL_argvI < CL_argvLen:
+      myarg = getArgument()
+      if myarg == u'check':
+        doGAMCheckForUpdates(forceCheck=True)
+      else:
+        unknownArgumentExit()
 
 def showUsage():
-  doVersion()
+  doVersion(checkForCheck=False)
   print u'''
 Usage: gam [OPTIONS]...
 
