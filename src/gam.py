@@ -23,8 +23,8 @@ For more information, see http://git.io/gam
 
 """
 
-__author__ = u'Jay Lee <jay0lee@gmail.com>'
-__version__ = u'3.73'
+__author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
+__version__ = u'3.73.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -65,16 +65,17 @@ Go to the following link in your browser:
     {address}
 """
 
-GAM_URL = u'http://git.io/gam'
+GAM = u'GAM-N'
+GAM_URL = u'https://github.com/taers232c/{0}'.format(GAM)
 GAM_INFO = u'GAM {0} - {1} / {2} / Python {3}.{4}.{5} {6} / {7} {8} /'.format(__version__, GAM_URL,
                                                                               __author__,
                                                                               sys.version_info[0], sys.version_info[1], sys.version_info[2],
                                                                               sys.version_info[3],
                                                                               platform.platform(), platform.machine())
-GAM_RELEASES = u'https://github.com/jay0lee/GAM/releases'
+GAM_RELEASES = u'https://github.com/taers232c/{0}/releases'.format(GAM)
 GAM_WIKI = u'https://github.com/jay0lee/GAM/wiki'
 GAM_WIKI_CREATE_CLIENT_SECRETS = GAM_WIKI+u'/CreatingClientSecretsFile'
-GAM_APPSPOT = u'https://gam-update.appspot.com'
+GAM_APPSPOT = u'https://gamn-update.appspot.com'
 GAM_APPSPOT_LATEST_VERSION = GAM_APPSPOT+u'/latest-version.txt?v='+__version__
 GAM_APPSPOT_LATEST_VERSION_ANNOUNCEMENT = GAM_APPSPOT+u'/latest-version-announcement.txt?v='+__version__
 
@@ -1898,10 +1899,7 @@ def SetGlobalVariables():
 
 def doGAMCheckForUpdates(forceCheck=False):
   import urllib2, calendar
-  try:
-    current_version = float(__version__)
-  except ValueError:
-    return
+  current_version = __version__
   now_time = calendar.timegm(time.gmtime())
   if not forceCheck:
     last_check_time = readFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], continueOnError=True, displayError=forceCheck)
@@ -1911,12 +1909,9 @@ def doGAMCheckForUpdates(forceCheck=False):
       return
   try:
     c = urllib2.urlopen(GAM_APPSPOT_LATEST_VERSION)
-    try:
-      latest_version = float(c.read())
-    except ValueError:
-      return
+    latest_version = c.read().strip()
     if forceCheck or (latest_version > current_version):
-      print u'Version: Check, Current: {0:.2f}, Latest: {1:.2f}'.format(current_version, latest_version)
+      print u'Version: Check, Current: {0}, Latest: {1}'.format(current_version, latest_version)
     if latest_version <= current_version:
       writeFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], str(now_time), continueOnError=True, displayError=forceCheck)
       return
