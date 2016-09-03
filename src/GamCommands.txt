@@ -364,8 +364,8 @@ If an item contains spaces, it should be surrounded by " or '.
 		(courseparticipants <CourseID>)|
 		(students <CourseID>)|
 		(teachers <CourseID>)|
-		(file <FileName>)|
-		(csvfile <FileName>(:<FieldName>)+)|
+		(file <FileName> [charset <Charset>] [delimiter <String>])|
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)
 
@@ -489,7 +489,7 @@ gam version
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
-gam csv <FileName>|- [charset <Charset>] gam <GAMArgumentList>
+gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
 # You can make substitutions in <GAMArgumentList> with values from the CSV file.
 # An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file

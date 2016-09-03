@@ -84,10 +84,9 @@ FALSE = u'false'
 TRUE_VALUES = [TRUE, u'on', u'yes', u'enabled', u'1']
 FALSE_VALUES = [FALSE, u'off', u'no', u'disabled', u'0']
 TRUE_FALSE = [TRUE, FALSE]
-usergroup_types = [u'user', u'users', u'group', u'ou', u'org',
-                   u'ou_and_children', u'ou_and_child', u'query',
-                   u'license', u'licenses', u'licence', u'licences', u'file', u'csv', u'csvfile', u'all',
-                   u'cros']
+usergroup_types = [u'user', u'users', u'group', u'ou', u'org', u'ou_and_children', u'ou_and_child', u'query',
+                   u'license', u'licenses', u'licence', u'licences', u'courseparticipants', u'teachers', u'students',
+                   u'file', u'csv', u'csvfile', u'all', u'cros']
 ERROR = u'ERROR'
 ERROR_PREFIX = ERROR+u': '
 WARNING = u'WARNING'
@@ -962,9 +961,12 @@ def usageErrorExit(message, extraneous=False):
   sys.exit(USAGE_ERROR_RC)
 
 # Invalid CSV ~Header or ~~Header~~
-def csvFieldErrorExit(fieldName, fieldNames, backupArg=False):
+def csvFieldErrorExit(fieldName, fieldNames, backupArg=False, checkForCharset=False):
   if backupArg:
     putArgumentBack()
+    if checkForCharset and CL_argv[CL_argvI-1] == u'charset':
+      putArgumentBack()
+      putArgumentBack()
   usageErrorExit(MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS.format(fieldName, u','.join(fieldNames)))
 
 def unknownArgumentExit():
@@ -1598,6 +1600,26 @@ def getCharSet():
   if not checkArgumentPresent([u'charset',]):
     return GC_Values.get(GC_CHARSET, GM_Globals[GM_SYS_ENCODING])
   return getString(OB_CHAR_SET)
+
+def getDelimiter():
+  if checkArgumentPresent([u'delimiter',]):
+    return getString(OB_STRING)
+  return None
+
+def getMatchFields(fieldNames):
+  matchFields = {}
+  while checkArgumentPresent([u'matchfield',]):
+    matchField = getString(OB_FIELD_NAME).strip(u'~')
+    if (not matchField) or (matchField not in fieldNames):
+      csvFieldErrorExit(matchField, fieldNames, backupArg=True)
+    matchFields[matchField] = getREPattern()
+  return matchFields
+
+def checkMatchFields(row, matchFields):
+  for matchField, matchPattern in matchFields.items():
+    if (matchField not in row) or not matchPattern.search(row[matchField]):
+      return False
+  return True
 
 MAX_MESSAGE_BYTES_PATTERN = re.compile(r'^(\d+)([mkb]?)$')
 MAX_MESSAGE_BYTES_FORMAT_REQUIRED = u'<Number>[m|k|b]'
@@ -2785,17 +2807,26 @@ def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
     return u'{0}{1}'.format(emailAddressOrUID, addDomain)
   return emailAddressOrUID
 
-def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=None, checkNotSuspended=False):
+def splitEntityList(entity, dataDelimiter, shlexSplit):
+  if not entity:
+    return []
+  if not dataDelimiter:
+    return [entity,]
+  if not shlexSplit:
+    return entity.split(dataDelimiter)
+  import shlex
+  lexer = shlex.shlex(entity, posix=True)
+  lexer.whitespace = dataDelimiter
+  lexer.whitespace_split = True
+  return list(lexer)
+
+def getUsersToModify(entityType, entity, silent=False, member_type=None, checkNotSuspended=False):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  if entity_type == None:
-    entity_type = getArgument()
-  if entity == None:
-    entity = getString(OB_ENTITY)
-  if entity_type == u'user':
+  if entityType == u'user':
     users = [entity,]
-  elif entity_type == u'users':
+  elif entityType == u'users':
     users = entity.replace(u',', u' ').split()
-  elif entity_type == u'group':
+  elif entityType == u'group':
     group = normalizeEmailAddressOrUID(entity)
     if member_type == None:
       member_type_message = u'all members'
@@ -2808,7 +2839,7 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
     members = callGAPIpages(cd.members(), u'list', u'members', page_message=page_message,
                             groupKey=group, roles=member_type, fields=u'nextPageToken,members(email)')
     users = [member[u'email'] for member in members]
-  elif entity_type in [u'ou', u'org']:
+  elif entityType in [u'ou', u'org']:
     ou = makeOrgUnitPathAbsolute(entity)
     users = []
     page_message = None
@@ -2825,7 +2856,7 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
         users.append(member[u'primaryEmail'])
     if not silent:
       sys.stderr.write(u"%s users are directly in the OU.\n" % len(users))
-  elif entity_type in [u'ou_and_children', u'ou_and_child']:
+  elif entityType in [u'ou_and_children', u'ou_and_child']:
     ou = makeOrgUnitPathAbsolute(entity)
     users = []
     page_message = None
@@ -2840,7 +2871,7 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
         users.append(member[u'primaryEmail'])
     if not silent:
       sys.stderr.write(u"done.\r\n")
-  elif entity_type in [u'query',]:
+  elif entityType == u'query':
     users = []
     if not silent:
       sys.stderr.write(u"Getting all users that match query %s (may take some time on a large domain)...\n" % entity)
@@ -2853,7 +2884,7 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
         users.append(member[u'primaryEmail'])
     if not silent:
       sys.stderr.write(u"done.\r\n")
-  elif entity_type in [u'license', u'licenses', u'licence', u'licences']:
+  elif entityType in [u'license', u'licenses', u'licence', u'licences']:
     users = []
     licenses = doPrintLicenses(return_list=True, skus=entity.split(u','))
     for row in licenses:
@@ -2861,15 +2892,19 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
         users.append(row[u'userId'])
       except KeyError:
         pass
-  elif entity_type == u'file':
+  elif entityType == u'file':
     users = []
+    encoding = getCharSet()
+    dataDelimiter = getDelimiter()
     f = openFile(entity)
-    for row in f:
-      user = row.strip()
-      if user:
-        users.append(user)
+    uf = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
+    for row in uf:
+      for user in splitEntityList(row.strip(), dataDelimiter, False):
+        user = user.strip()
+        if user:
+          users.append(user)
     closeFile(f)
-  elif entity_type in [u'csv', u'csvfile']:
+  elif entityType in [u'csv', u'csvfile']:
     try:
       fileFieldNameList = entity.split(u':')
     except ValueError:
@@ -2877,39 +2912,42 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
     if len(fileFieldNameList) < 2:
       putArgumentBack()
       invalidArgumentExit(OB_FILE_NAME_FIELD_NAME)
+    encoding = getCharSet()
     f = openFile(fileFieldNameList[0])
-    csvFile = csv.DictReader(f, restval=u'')
+    csvFile = UnicodeDictReader(f, encoding=encoding)
     for fieldName in fileFieldNameList[1:]:
       if fieldName not in csvFile.fieldnames:
-        putArgumentBack()
-        csvFieldErrorExit(fieldName, csvFile.fieldnames)
+        csvFieldErrorExit(fieldName, csvFile.fieldnames, backupArg=True, checkForCharset=True)
+    matchFields = getMatchFields(csvFile.fieldnames)
+    dataDelimiter = getDelimiter()
     users = []
     for row in csvFile:
-      for fieldName in fileFieldNameList[1:]:
-        user = row[fieldName].strip()
-        if user:
-          users.append(user)
+      if not matchFields or checkMatchFields(row, matchFields):
+        for fieldName in fileFieldNameList[1:]:
+          for user in splitEntityList(row[fieldName].strip(), dataDelimiter, False):
+            user = user.strip()
+            if user:
+              users.append(user)
     closeFile(f)
-  elif entity_type in [u'courseparticipants', u'teachers', u'students']:
+  elif entityType in [u'courseparticipants', u'teachers', u'students']:
     croom = buildGAPIObject(GAPI_CLASSROOM_API)
     users = []
-    if not entity.isdigit() and entity[:2] != u'd:':
-      entity = u'd:%s' % entity
-    if entity_type in [u'courseparticipants', u'teachers']:
+    entity = addCourseIdScope(entity)
+    if entityType in [u'courseparticipants', u'teachers']:
       page_message = u'Got %%total_items%% teachers...'
       teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers', page_message=page_message, courseId=entity)
       for teacher in teachers:
         email = teacher[u'profile'].get(u'emailAddress', None)
         if email:
           users.append(email)
-    if entity_type in [u'courseparticipants', u'students']:
+    if entityType in [u'courseparticipants', u'students']:
       page_message = u'Got %%total_items%% students...'
       students = callGAPIpages(croom.courses().students(), u'list', u'students', page_message=page_message, courseId=entity)
       for student in students:
         email = student[u'profile'].get(u'emailAddress', None)
         if email:
           users.append(email)
-  elif entity_type == u'all':
+  elif entityType == u'all':
     users = []
     if entity.lower() == u'users':
       if not silent:
@@ -2936,27 +2974,28 @@ def getUsersToModify(entity_type=None, entity=None, silent=False, member_type=No
     else:
       putArgumentBack()
       invalidChoiceExit([u'users', u'cros'])
-  elif entity_type == u'cros':
+  elif entityType == u'cros':
     users = entity.replace(u',', u' ').split()
     entity = u'cros'
   else:
+    putArgumentBack()
     unknownArgumentExit()
   return users
 
 def getEntityToModify(crosAllowed=False, checkNotSuspended=False):
-  entity_types = usergroup_types[:]
+  entityTypes = usergroup_types[:]
   if not crosAllowed:
-    entity_types.remove(u'cros')
-  entity_type = getChoice(entity_types, defaultChoice=u'user')
+    entityTypes.remove(u'cros')
+  entityType = getChoice(entityTypes, defaultChoice=u'user')
   entity = getString(OB_ENTITY)
-  if (not crosAllowed) and (entity_type == u'all') and (entity == u'cros'):
+  if (not crosAllowed) and (entityType == u'all') and (entity == u'cros'):
     putArgumentBack()
     invalidChoiceExit([u'users',])
-  if (entity_type == u'cros') or ((entity_type == u'all') and (entity == u'cros')):
+  if (entityType == u'cros') or ((entityType == u'all') and (entity == u'cros')):
     return_type = u'cros'
   else:
     return_type = u'users'
-  return (return_type, getUsersToModify(entity_type=entity_type, entity=entity, checkNotSuspended=checkNotSuspended))
+  return (return_type, getUsersToModify(entityType, entity, checkNotSuspended=checkNotSuspended))
 
 # Write a CSV file
 def addTitleToCSVfile(title, titles):
@@ -3315,13 +3354,15 @@ def doCSV():
   encoding = getCharSet()
   f = openFile(filename)
   csvFile = UnicodeDictReader(f, encoding=encoding)
+  matchFields = getMatchFields(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
   if CL_argvI == CL_argvLen:
     missingArgumentExit(OB_GAM_ARGUMENT_LIST)
   GAM_argv, subFields = getSubFields([], csvFile.fieldnames)
   items = []
   for row in csvFile:
-    items.append(processSubFields(GAM_argv, row, subFields))
+    if (not matchFields) or checkMatchFields(row, matchFields):
+      items.append(processSubFields(GAM_argv, row, subFields))
   closeFile(f)
   run_batch(items, len(items))
 
@@ -5619,7 +5660,7 @@ def doUpdateGroup():
     _, users_email = getEntityToModify(checkNotSuspended=checkNotSuspended)
     checkForExtraneousArguments()
     users_email = [x.lower() for x in users_email]
-    current_emails = getUsersToModify(entity_type=u'group', entity=group, member_type=role)
+    current_emails = getUsersToModify(u'group', group, member_type=role)
     current_emails = [x.lower() for x in current_emails]
     to_add = list(set(users_email) - set(current_emails))
     to_remove = list(set(current_emails) - set(users_email))
@@ -5659,7 +5700,7 @@ def doUpdateGroup():
       roles = u','.join(sorted(set(roles)))
     else:
       roles = ROLE_MEMBER
-    user_emails = getUsersToModify(entity_type=u'group', entity=group, member_type=roles)
+    user_emails = getUsersToModify(u'group', group, member_type=roles)
     for user_email in user_emails:
       sys.stderr.write(u' removing %s\n' % user_email)
       callGAPI(cd.members(), u'delete', soft_errors=True, groupKey=group, memberKey=user_email)
@@ -7384,7 +7425,7 @@ def doPrintShowGuardians(csvFormat):
     elif myarg == u'states':
       states = getString(OB_GUARDIAN_STATE_LIST).replace(u',', u' ').split()
     elif myarg in usergroup_types:
-      studentIds = getUsersToModify(entity_type=myarg, entity=getString(OB_ENTITY))
+      studentIds = getUsersToModify(myarg, getString(OB_ENTITY))
     else:
       unknownArgumentExit()
   i = 0
@@ -7596,14 +7637,14 @@ def doCourseRemoveParticipant(courseId):
 
 def doCourseSyncParticipants(courseId):
   participant_type = getChoice(SYNC_PARTICIPANT_TYPES_MAP, mapChoice=True)
-  diff_entity_type = getString(OB_ENTITY_TYPE)
+  diff_entityType = getString(OB_ENTITY_TYPE)
   diff_entity = getString(OB_ENTITY)
   checkForExtraneousArguments()
-  current_course_users = getUsersToModify(entity_type=PARTICIPANT_ENTITY_NAME_MAP[participant_type], entity=courseId)
+  current_course_users = getUsersToModify(PARTICIPANT_ENTITY_NAME_MAP[participant_type], courseId)
   current_course_users = [x.lower() for x in current_course_users]
-  if diff_entity_type == u'courseparticipants':
-    diff_entity_type = participant_type
-  diff_against_users = getUsersToModify(entity_type=diff_entity_type, entity=diff_entity)
+  if diff_entityType == u'courseparticipants':
+    diff_entityType = participant_type
+  diff_against_users = getUsersToModify(diff_entityType, diff_entity)
   print
   diff_against_users = [x.lower() for x in diff_against_users]
   to_add = list(set(diff_against_users) - set(current_course_users))
@@ -9949,7 +9990,7 @@ def printShowTokens(entityType, users, csvFormat):
       putArgumentBack()
       entityType, users = getEntityToModify()
   if not entityType:
-    users = getUsersToModify(entity_type=u'all', entity=u'users')
+    users = getUsersToModify(u'all', u'users')
   fields = u','.join([u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey', u'scopes'])
   i = 0
   count = len(users)
@@ -12028,8 +12069,7 @@ def ProcessGAMCommand(args):
       else:
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
-    putArgumentBack()
-    users = getUsersToModify()
+    users = getUsersToModify(command, getString(OB_ENTITY))
     command = getArgument()
     if command == u'print' and CL_argvI == CL_argvLen:
       for user in users:
