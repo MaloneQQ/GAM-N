@@ -702,6 +702,8 @@ PHRASE_NOT_ALLOWED = u'Not Allowed'
 PHRASE_NOT_FOUND = u'Not Found'
 PHRASE_NOW_THE_PRIMARY_DOMAIN = u'Now the primary domain'
 PHRASE_NO_ENTITIES_MATCHED = u'No {0} matched'
+PHRASE_NO_FILTER_CRITERIA = U'No {0} criteria specified'
+PHRASE_NO_FILTER_ACTIONS = U'No {0} actions specified'
 PHRASE_NO_LABELS_MATCH = u'No Labels match'
 PHRASE_NO_MESSAGES_WITH_LABEL = u'No Messages with Label'
 PHRASE_NO_PRINT_JOBS = u'No Print Jobs'
@@ -10760,6 +10762,8 @@ def _printFilter(user, userFilter, labels):
         pass
       else:
         row[item] = u'{0} {1}'.format(item, userFilter[u'criteria'][item])
+  else:
+    row[u'error'] = u'NoCriteria'
   if u'action' in userFilter:
     for labelId in userFilter[u'action'].get(u'addLabelIds', []):
       if labelId in FILTER_ADD_LABEL_TO_ARGUMENT_MAP:
@@ -10771,6 +10775,8 @@ def _printFilter(user, userFilter, labels):
         row[FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]] = FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId]
     if userFilter[u'action'].get(u'forward'):
       row[u'forward'] = u'forward {0}'.format(userFilter[u'action'][u'forward'])
+  else:
+    row[u'error'] = u'NoActions'
   return row
 
 def _showFilter(userFilter, j, jcount, labels):
@@ -10786,6 +10792,8 @@ def _showFilter(userFilter, j, jcount, labels):
         pass
       else:
         print convertUTF8(u'      {0} "{1}"'.format(item, userFilter[u'criteria'][item]))
+  else:
+    printKeyValueList(u'      ', [ERROR, PHRASE_NO_FILTER_CRITERIA.format(u'Filter')])
   print u'    Actions:'
   if u'action' in userFilter:
     for labelId in userFilter[u'action'].get(u'addLabelIds', []):
@@ -10798,6 +10806,8 @@ def _showFilter(userFilter, j, jcount, labels):
         print u'      {0}'.format(FILTER_REMOVE_LABEL_TO_ARGUMENT_MAP[labelId])
     if userFilter[u'action'].get(u'forward'):
       print u'    Forwarding Address: {0}'.format(userFilter[u'action'][u'forward'])
+  else:
+    printKeyValueList(u'      ', [ERROR, PHRASE_NO_FILTER_ACTIONS.format(u'Filter')])
 #
 FILTER_CRITERIA_CHOICES_MAP = {
   u'excludechats': u'excludeChats',
