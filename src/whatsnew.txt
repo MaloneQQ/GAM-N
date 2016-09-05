@@ -9,15 +9,41 @@ In the list of Authorized API clients, locate your Gam Service Account, copy the
 Paste the Client ID into the Client name box as in step 6.iii.c, then do steps 6.iii.d and 6.iii.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.7.
 
-GAM 3.73.01
+GAM 3.73.02
+
+Selectors that use CSV files mow have the matchfield argument that allows selection of rows within the CSV file.
+To select a row from a CSV file, all matchfields must be present in the row and all <RegularExpression>s must match.
+When specifying a flat file or CSV file as the source of a list of items, you can specify a delimiter so that multiple values can be
+obtained from a single row of a flat file or a single column of a CSV file.
+The data selector csvfile <FileName>:<FieldName> has been expanded to <FileName>(:<FieldName>)+. This allows you to gather data
+from several columns; the columns do not have to be contiguous.
+<UserTypeEntity> ::=
+		...
+		(file <FileName> [charset <CharSet>] [delimiter <String>)]
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+
+The matchfield aregument is also available with the gam csv command.
+gam csv <FileName>|- [charset <Charset>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+
+Given the file DeptGroups.csv:
+Department,Group
+Sales,sales-ny@bar.com
+Sales,sales-nj@bar.com
+Marketing,mktg-ny@bar.com
+Marketing,mktg-nj@bar.com
+
+gam csv DeptGroups.csv matchfield Department Sales gam print group-members group ~Group
+gam csv DeptGroups.csv matchfield Group '.*ny.*' gam print group-members group ~Group
 
 The data selector csvfile <FileName>:<FieldName> has been expanded to <FileName>(:<FieldName>)+. This allows you to gather data
-from several columns; the columns do not have to be contiguous. Given the file FourUsers.csv:
-UserA,UserB,UserC,UserD
-user1a@bar.com,user1b@bar.com,user1c@bar.com,user1d@bar.com
-user2a@bar.com,user2b@bar.com,user2c@bar.com,user2d@bar.com
+from several columns; the columns do not have to be contiguous.
+Given the file Group1Users.csv with two columns with multiple values in each column separated by a space.
+UsersAB,UsersCD
+user1a@bar.com user1b@bar.com,user1c@bar.com user1d@bar.com
+user2a@bar.com user2b@bar.com,user2c@bar.com user2d@bar.com
 ...
-gam update group group@bar.com sync members csvfile FourUsers.csv:UserA:UserB:UserC:UserD
+
+gam update group group1@bar.com sync members csvfile Group1Users.csv:UsersAB:UsersCD delimiter ' '
 
 GAM 3.73
 Expanded the options for parameter substitution in gam csv, RE pattern substitution is now available.
