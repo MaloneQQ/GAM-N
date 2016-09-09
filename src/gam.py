@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.73.02'
+__version__ = u'3.73.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -11415,9 +11415,9 @@ def addUpdateSendAs(users, addCmd):
       if checkArgumentPresent(FILE_ARGUMENT):
         filename = getString(OB_FILE_NAME)
         encoding = getCharSet()
-        signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
+        signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>')
       else:
-        signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
+        signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
   if signature != None:
@@ -11541,9 +11541,9 @@ def setSignature(users):
   if checkArgumentPresent(FILE_ARGUMENT):
     filename = getString(OB_FILE_NAME)
     encoding = getCharSet()
-    signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
+    signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>')
   else:
-    signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
+    signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
   body = {}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -11656,7 +11656,7 @@ def setVacation(users):
         unknownArgumentExit()
     if message:
       if responseBodyType == u'responseBodyHtml':
-        message = message.replace(u'\\n', u'<br/>').replace(u'\n', u'<br/>')
+        message = message.replace(u'\\n', u'<br/>')
       else:
         message = message.replace(u'\\n', u'\n')
       if tagReplacements:

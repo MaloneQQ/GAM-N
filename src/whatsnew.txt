@@ -9,6 +9,10 @@ In the list of Authorized API clients, locate your Gam Service Account, copy the
 Paste the Client ID into the Client name box as in step 6.iii.c, then do steps 6.iii.d and 6.iii.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.7.
 
+GAM 3.73.03
+
+Signatures and vacation messages were converting newlines to <br/> inappropriately, this has been corrected.
+
 GAM 3.73.02
 
 Selectors that use CSV files mow have the matchfield argument that allows selection of rows within the CSV file.
