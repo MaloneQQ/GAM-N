@@ -369,12 +369,12 @@ If an item contains spaces, it should be surrounded by " or '.
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)
 
-<DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>)|(drivefilename[:| ]<DriveFileName>)|(query[:| ]<QueryDriveFile>)|root
+<DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>)|(drivefilename(:| )<DriveFileName>)|(query(:| )<QueryDriveFile>)|root
 
 # Item attributes
 <CalendarAttributes> ::=
 	(selected <Boolean>)|(hidden <Boolean>)|(summary <String>)|(colorindex|colorid <CalendarColorIndex>)|(backgroundcolor <ColorHex>)|(foregroundcolor <ColorHex>)|
-	(reminder clear|(email|sms|pop <Number>))|
+	(reminder clear|(email|sms|pop <Number>)|(<Number> email|sms|pop))|
 	(notification clear|(email|sms eventcreation|eventchange|eventcancellation|eventresponse|agenda))
 
 <CalendarSettings> ::==
@@ -409,7 +409,7 @@ If an item contains spaces, it should be surrounded by " or '.
 	(source <String> <URL>)|(privateproperty <PropertyKey> <PropertyValue>)|(sharedproperty <PropertyKey> <PropertyValue>)|
 	(recurrence <RRULE, EXRULE, RDATE and EXDATE line>)|
 	(start allday <Date>)|(start <Time>)|(end allday <Date>)|(end <Time>)|(timezone <Timezone>)|
-	(noreminders|(reminder email|popup|sms <Number>))|
+	(noreminders|(reminder email|popup|sms <Number>)|(reminder <Number> email|popup|sms))|
 	(colorindex|colorid <EventColorIndex>)
 
 <GroupAttributes> ::=
@@ -801,6 +801,7 @@ gam <UserTypeEntity> untrash messages query <QueryGmail> [doit] [max_to_untrash|
 #
 gam <UserTypeEntity> show gmailprofile [todrive]
 gam <UserTypeEntity> show gplusprofile [todrive]
+
 gam <UserTypeEntity> arrows <Boolean>
 
 gam <UserTypeEntity> add delegate|delegates <EmailAddress>
