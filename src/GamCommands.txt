@@ -56,7 +56,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <MilliSeconds> ::= <Digit><Digit><Digit>
 <Date> ::= <Year>-<Month>-<Day>
 <DateTime> ::= <Year>-<Month>-<Day>(<Space>|T)<Hour>:<Minute>
-<Time> ::= <Year>-<Month>-<Day>(<Space>|T)<Hour>:<Minute>[:<Second>[.<MilliSeconds>[Z]]]
+<Time> ::= <Year>-<Month>-<Day>(<Space>|T)<Hour>:<Minute>:<Second>[.<MilliSeconds>](Z|+<Hour>:<Minute>|-<Hour>:<Minute>)
 <RegularExpression> ::= <Python Regular Expression, see: https://docs.python.org/2/library/re.html>
 <Tag> ::= <String>
 <UniqueID> ::= uid:<String>
