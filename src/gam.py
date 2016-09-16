@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.73.03'
+__version__ = u'3.73.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -3008,6 +3008,11 @@ def addTitlesToCSVfile(addTitles, titles):
     if title not in titles:
       addTitleToCSVfile(title, titles)
 
+def removeTitlesFromCSVfile(removeTitles, titles):
+  for title in removeTitles:
+    if title in titles:
+      titles.remove(title)
+
 def addRowTitlesToCSVfile(row, csvRows, titles):
   csvRows.append(row)
   for title in row:
@@ -5973,7 +5978,38 @@ def doPrintGroups():
     csvRows.append(group)
   writeCSVfile(csvRows, titles, u'Groups', todrive)
 
-MEMBERS_FIELD_NAMES_MAP = {
+def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplicates, recursive, level):
+  try:
+    sys.stderr.write(u'Getting members for %s%s\n' % (groupEmail, currentCount(i, count)))
+    groupMembers = callGAPIpages(cd.members(), u'list', u'members',
+                                 message_attribute=u'email',
+                                 throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
+                                 groupKey=groupEmail)
+    if not recursive:
+      if noduplicates:
+        for member in groupMembers:
+          if member[u'id'] in membersSet:
+            continue
+          membersSet.add(member[u'id'])
+          membersList.append(member)
+      else:
+        membersList.extend(groupMembers)
+    else:
+      for member in groupMembers:
+        if member[u'type'] == u'USER':
+          if noduplicates:
+            if member[u'id'] in membersSet:
+              continue
+            membersSet.add(member[u'id'])
+          member[u'level'] = level
+          member[u'subgroup'] = [u'', groupEmail][level > 0]
+          membersList.append(member)
+        else:
+          getGroupMembers(cd, member[u'email'], membersList, membersSet, i, count, noduplicates, recursive, level+1)
+  except (GAPI_groupNotFound, GAPI_domainNotFound, GAPI_forbidden):
+    entityUnknownWarning(u'Group', groupEmail, i, count)
+
+GROUPMEMBERS_FIELD_NAMES_MAP = {
   u'email': u'email',
   u'groupemail': u'group',
   u'id': u'id',
@@ -5984,50 +6020,66 @@ MEMBERS_FIELD_NAMES_MAP = {
   u'useremail': u'email',
   }
 
+GROUPMEMBERS_DEFAULT_FIELDS = [u'id', u'role', u'group', u'email', u'type', u'status']
+
 def doPrintGroupMembers():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  todrive = groupname = membernames = False
+  todrive = groupname = membernames = noduplicates = recursive = False
   customer = GC_Values[GC_CUSTOMER_ID]
-  usedomain = usemember = None
+  domain = usemember = None
   fieldsList = []
   fieldsTitles = {}
   titles = []
   csvRows = []
   groups_to_get = []
+  userFieldsList = []
+  userFieldsTitles = {}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'domain':
-      usedomain = getString(OB_DOMAIN_NAME).lower()
-      customer = None
-    elif myarg == u'todrive':
+    if myarg == u'todrive':
       todrive = True
+    elif myarg == u'domain':
+      domain = getString(OB_DOMAIN_NAME).lower()
+      customer = None
     elif myarg == u'member':
       usemember = getEmailAddress()
       customer = None
-    elif myarg == u'membernames':
-      membernames = True
     elif myarg == u'group':
       group_email = getEmailAddress()
       groups_to_get = [{u'email': group_email}]
-    elif myarg in MEMBERS_FIELD_NAMES_MAP:
-      myarg = MEMBERS_FIELD_NAMES_MAP[myarg]
+    elif myarg in GROUPMEMBERS_FIELD_NAMES_MAP:
+      myarg = GROUPMEMBERS_FIELD_NAMES_MAP[myarg]
       addFieldToCSVfile(myarg, {myarg: [myarg]}, fieldsList, fieldsTitles, titles)
     elif myarg == u'fields':
       fieldNameList = getString(OB_FIELD_NAME_LIST)
       for field in fieldNameList.lower().replace(u',', u' ').split():
-        if field in MEMBERS_FIELD_NAMES_MAP:
-          field = MEMBERS_FIELD_NAMES_MAP[field]
+        if field in GROUPMEMBERS_FIELD_NAMES_MAP:
+          field = GROUPMEMBERS_FIELD_NAMES_MAP[field]
           addFieldToCSVfile(field, {field: [field]}, fieldsList, fieldsTitles, titles)
         else:
           putArgumentBack()
-          invalidChoiceExit(MEMBERS_FIELD_NAMES_MAP)
+          invalidChoiceExit(GROUPMEMBERS_FIELD_NAMES_MAP)
+    elif myarg == u'membernames':
+      membernames = True
+      if u'name.fullName' not in userFieldsList:
+        userFieldsList.append(u'name.fullName')
+    elif myarg == u'userfields':
+      fieldNameList = getString(OB_FIELD_NAME_LIST)
+      for field in fieldNameList.lower().replace(u',', u' ').split():
+        if field in USER_ARGUMENT_TO_PROPERTY_MAP:
+          addFieldToCSVfile(field, USER_ARGUMENT_TO_PROPERTY_MAP, userFieldsList, userFieldsTitles, titles)
+        else:
+          putArgumentBack()
+          invalidChoiceExit(USER_ARGUMENT_TO_PROPERTY_MAP)
+    elif myarg == u'noduplicates':
+      noduplicates = True
+    elif myarg == u'recursive':
+      recursive = True
     else:
       unknownArgumentExit()
   if not fieldsList:
-    for field in [u'id', u'role', u'group', u'email', u'type', u'status']:
+    for field in GROUPMEMBERS_DEFAULT_FIELDS:
       addFieldToCSVfile(field, {field: [field]}, fieldsList, fieldsTitles, titles)
-    if membernames:
-      addTitlesToCSVfile([u'name'], titles)
   else:
     if u'name'in fieldsList:
       membernames = True
@@ -6035,42 +6087,65 @@ def doPrintGroupMembers():
   if u'group' in fieldsList:
     groupname = True
     fieldsList.remove(u'group')
+  if userFieldsList:
+    if not membernames and u'name.fullName' in userFieldsList:
+      membernames = True
+    userFieldsList = u','.join(set(userFieldsList)).replace(u'.', u'/')
+  if membernames:
+    addTitlesToCSVfile([u'name'], titles)
+    removeTitlesFromCSVfile([u'name.fullName'], titles)
   if not groups_to_get:
     groups_to_get = callGAPIpages(cd.groups(), u'list', u'groups', message_attribute=u'email',
-                                  customer=customer, domain=usedomain, userKey=usemember, fields=u'nextPageToken,groups(email)')
+                                  customer=customer, domain=domain, userKey=usemember, fields=u'nextPageToken,groups(email)')
+  membersSet = set()
+  level = 0
   i = 0
   count = len(groups_to_get)
   for group in groups_to_get:
     i += 1
-    group_email = group[u'email']
-    sys.stderr.write(u'Getting members for %s%s\n' % (group_email, currentCount(i, count)))
-    group_members = callGAPIpages(cd.members(), u'list', u'members', message_attribute=u'email', groupKey=group_email)
-    for member in group_members:
-      member_attr = {}
+    groupEmail = group[u'email']
+    membersList = []
+    getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplicates, recursive, level)
+    for member in membersList:
+      row = {}
       if groupname:
-        member_attr[u'group'] = group_email
+        row[u'group'] = groupEmail
       for title in fieldsList:
-        member_attr[title] = member[title]
-      if membernames:
-        member_attr[u'name'] = u'Unknown'
+        row[title] = member[title]
+      if recursive:
+        row[u'level'] = member[u'level']
+        row[u'subgroup'] = member[u'subgroup']
+      if userFieldsList:
+        if membernames:
+          row[u'name'] = u'Unknown'
         memberType = member.get(u'type')
         if memberType == u'USER':
           try:
             mbinfo = callGAPI(cd.users(), u'get',
                               throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN],
-                              userKey=member[u'id'], fields=u'name')
-            member_attr[u'name'] = mbinfo[u'name'][u'fullName']
+                              userKey=member[u'id'], fields=userFieldsList)
+            if membernames:
+              row[u'name'] = mbinfo[u'name'][u'fullName']
+              del mbinfo[u'name'][u'fullName']
+            addRowTitlesToCSVfile(flattenJSON(mbinfo, flattened=row), csvRows, titles)
           except (GAPI_userNotFound, GAPI_forbidden):
-            pass
-        elif memberType == u'GROUP':
-          try:
-            mbinfo = callGAPI(cd.groups(), u'get',
-                              throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_FORBIDDEN],
-                              groupKey=member[u'id'], fields=u'name')
-            member_attr[u'name'] = mbinfo[u'name']
-          except (GAPI_groupNotFound, GAPI_forbidden):
-            pass
-      csvRows.append(member_attr)
+            csvRows.append(row)
+        else:
+          if membernames and memberType == u'GROUP':
+            try:
+              mbinfo = callGAPI(cd.groups(), u'get',
+                                throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_FORBIDDEN],
+                                groupKey=member[u'id'], fields=u'name')
+              row[u'name'] = mbinfo[u'name']
+            except (GAPI_groupNotFound, GAPI_forbidden):
+              pass
+          csvRows.append(row)
+      else:
+        csvRows.append(row)
+  sortCSVTitles(GROUPMEMBERS_DEFAULT_FIELDS, titles)
+  if recursive:
+    removeTitlesFromCSVfile([u'level', u'subgroup'], titles)
+    addTitlesToCSVfile([u'level', u'subgroup'], titles)
   writeCSVfile(csvRows, titles, u'Group Members', todrive)
 
 def doPrintLicenses(return_list=False, skus=None):

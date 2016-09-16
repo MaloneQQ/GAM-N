@@ -10,6 +10,15 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+gam 3.73.04
+
+Added userfields to gam print group-members to allow output of additional user fields.
+Add recursive argument to gam print group-members to show users from sub-groups rather than the sub-group name itself.
+Two new columns indicate the sub-group that a user comes from and the depth of the sub-group.
+The noduplicates argument ensures that a user only appears once in the list.
+    gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]
+	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
+
 GAM 3.73.03
 
 Signatures and vacation messages were converting newlines to <br/> inappropriately, this has been corrected.
