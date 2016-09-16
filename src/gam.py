@@ -6002,7 +6002,7 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
               continue
             membersSet.add(member[u'id'])
           member[u'level'] = level
-          member[u'subgroup'] = [u'', groupEmail][level > 0]
+          member[u'subgroup'] = groupEmail
           membersList.append(member)
         else:
           getGroupMembers(cd, member[u'email'], membersList, membersSet, i, count, noduplicates, recursive, level+1)
