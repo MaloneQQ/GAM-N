@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.74.01'
+__version__ = u'3.74.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -6088,8 +6088,6 @@ def doPrintGroupMembers():
           invalidChoiceExit(GROUPMEMBERS_FIELD_NAMES_MAP)
     elif myarg == u'membernames':
       membernames = True
-      if u'name.fullName' not in userFieldsList:
-        userFieldsList.append(u'name.fullName')
     elif myarg == u'userfields':
       fieldNameList = getString(OB_FIELD_NAME_LIST)
       for field in fieldNameList.lower().replace(u',', u' ').split():
@@ -6117,10 +6115,13 @@ def doPrintGroupMembers():
   if userFieldsList:
     if not membernames and u'name.fullName' in userFieldsList:
       membernames = True
-    userFieldsList = u','.join(set(userFieldsList)).replace(u'.', u'/')
   if membernames:
+    if u'name.fullName' not in userFieldsList:
+      userFieldsList.append(u'name.fullName')
     addTitlesToCSVfile([u'name'], titles)
     removeTitlesFromCSVfile([u'name.fullName'], titles)
+  if userFieldsList:
+    userFieldsList = u','.join(set(userFieldsList)).replace(u'.', u'/')
   if not groups_to_get:
     groups_to_get = callGAPIpages(cd.groups(), u'list', u'groups', message_attribute=u'email',
                                   customer=customer, domain=domain, userKey=usemember, fields=u'nextPageToken,groups(email)')
