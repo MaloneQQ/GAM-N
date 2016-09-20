@@ -10,6 +10,10 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+GAM 3.74.02
+
+Fix error in gam print group-members.
+
 GAM 3.74.01
 
 Handle cachediscoveryonly.txt when discovery is read from file.
