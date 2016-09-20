@@ -10,7 +10,16 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
-gam 3.73.04
+GAM 3.74.00
+
+Added cachediscoveryonly.txt signal file.
+If nocache.txt exists, no GAM API calls are cached.
+If nocache.txt does not exist and cachediscoveryonly.txt does not exist, all GAM API calls are cached.
+If nocache.txt does not exist and cachediscoveryonly.txt exists, only GAM discovery API calls are cached.
+The last combination caches GAM discovery API calls that usually return the same value
+without consuming large amounts of disc space as when all GAM API calls are cached.
+
+GAM 3.73.04
 
 Added userfields to gam print group-members to allow output of additional user fields.
 Add recursive argument to gam print group-members to show users from sub-groups rather than the sub-group name itself.

@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.73.04'
+__version__ = u'3.74.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -144,6 +144,10 @@ GM_MAP_ROLE_ID_TO_NAME = u'ri2n'
 GM_MAP_ROLE_NAME_TO_ID = u'rn2i'
 # Dictionary mapping User ID to Name
 GM_MAP_USER_ID_TO_NAME = u'ui2n'
+# GAM cache directory. If no_cache is True, this variable will be set to None
+GM_CACHE_DIR = u'gacd'
+# Reset GAM cache directory after discovery
+GM_CACHE_DISCOVERY_ONLY = u'gcdo'
 #
 GM_Globals = {
   GM_SYSEXITRC: 0,
@@ -161,6 +165,8 @@ GM_Globals = {
   GM_MAP_ROLE_ID_TO_NAME: None,
   GM_MAP_ROLE_NAME_TO_ID: None,
   GM_MAP_USER_ID_TO_NAME: None,
+  GM_CACHE_DIR: None,
+  GM_CACHE_DISCOVERY_ONLY: False,
   }
 #
 # Global variables defined by environment variables/signal files
@@ -172,8 +178,10 @@ GC_ACTIVITY_MAX_RESULTS = u'activity_max_results'
 GC_AUTO_BATCH_MIN = u'auto_batch_min'
 # When processing items in batches, how many should be processed in each batch
 GC_BATCH_SIZE = u'batch_size'
-# GAM cache directory. If no_cache is specified, this variable will be set to None
+# GAM cache directory
 GC_CACHE_DIR = u'cache_dir'
+# GAM cache discovery only. If no_cache is False, only API discovery calls will be cached
+GC_CACHE_DISCOVERY_ONLY = u'cache_discovery_only'
 # Character set of batch, csv, data files
 GC_CHARSET = u'charset'
 # Path to client_secrets.json
@@ -223,6 +231,7 @@ GC_Defaults = {
   GC_AUTO_BATCH_MIN: 0,
   GC_BATCH_SIZE: 50,
   GC_CACHE_DIR: u'',
+  GC_CACHE_DISCOVERY_ONLY: FALSE,
   GC_CHARSET: DEFAULT_CHARSET,
   GC_CLIENT_SECRETS_JSON: FN_CLIENT_SECRETS_JSON,
   GC_CONFIG_DIR: u'',
@@ -265,6 +274,7 @@ GC_VAR_INFO = {
   GC_AUTO_BATCH_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (0, None)},
   GC_BATCH_SIZE: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (1, 1000)},
   GC_CACHE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY},
+  GC_CACHE_DISCOVERY_ONLY: {GC_VAR_TYPE: GC_TYPE_BOOLEAN},
   GC_CHARSET: {GC_VAR_TYPE: GC_TYPE_STRING},
   GC_CLIENT_SECRETS_JSON: {GC_VAR_TYPE: GC_TYPE_FILE},
   GC_CONFIG_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY},
@@ -1889,6 +1899,7 @@ def SetGlobalVariables():
   _getOldEnvVar(GC_DEVICE_MAX_RESULTS, u'GAM_DEVICE_MAX_RESULTS')
   _getOldEnvVar(GC_DRIVE_MAX_RESULTS, u'GAM_DRIVE_MAX_RESULTS')
   _getOldEnvVar(GC_USER_MAX_RESULTS, u'GAM_USER_MAX_RESULTS')
+  _getOldSignalFile(GC_CACHE_DISCOVERY_ONLY, u'cachediscoveryonly.txt')
   _getOldSignalFile(GC_DEBUG_LEVEL, u'debug.gam', trueValue=4, falseValue=0)
   _getOldSignalFile(GC_NO_VERIFY_SSL, u'noverifyssl.txt')
   _getOldSignalFile(GC_NO_BROWSER, u'nobrowser.txt')
@@ -1919,7 +1930,11 @@ def SetGlobalVariables():
     ea_config.read(os.path.join(GC_Values[GC_CONFIG_DIR], FN_EXTRA_ARGS_TXT))
     GM_Globals[GM_EXTRA_ARGS_LIST].extend(ea_config.items(u'extra-args'))
   if GC_Values[GC_NO_CACHE]:
-    GC_Values[GC_CACHE_DIR] = None
+    GM_Globals[GM_CACHE_DIR] = None
+    GM_Globals[GM_CACHE_DISCOVERY_ONLY] = False
+  else:
+    GM_Globals[GM_CACHE_DIR] = GC_Values[GC_CACHE_DIR]
+    GM_Globals[GM_CACHE_DISCOVERY_ONLY] = GC_Values[GC_CACHE_DISCOVERY_ONLY]
   return True
 
 def doGAMCheckForUpdates(forceCheck=False):
@@ -2579,9 +2594,12 @@ def getClientAPIversionHttpService(api):
   credentials.user_agent = GAM_INFO
   api, version, api_version = getAPIVersion(api)
   http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
-                                             cache=GC_Values[GC_CACHE_DIR]))
+                                             cache=GM_Globals[GM_CACHE_DIR]))
   try:
-    return (credentials, googleapiclient.discovery.build(api, version, http=http, cache_discovery=False))
+    service = googleapiclient.discovery.build(api, version, http=http, cache_discovery=False)
+    if GM_Globals[GM_CACHE_DISCOVERY_ONLY]:
+      http.cache = None
+    return (credentials, service)
   except httplib2.ServerNotFoundError as e:
     systemErrorExit(4, e)
   except httplib2.CertificateValidationUnsupported:
@@ -2653,9 +2671,12 @@ API_SCOPE_MAPPING = {
 def getSvcAcctAPIversionHttpService(api):
   api, version, api_version = getAPIVersion(api)
   http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
-                       cache=GC_Values[GC_CACHE_DIR])
+                       cache=GM_Globals[GM_CACHE_DIR])
   try:
-    return (api_version, http, googleapiclient.discovery.build(api, version, http=http, cache_discovery=False))
+    service = googleapiclient.discovery.build(api, version, http=http, cache_discovery=False)
+    if GM_Globals[GM_CACHE_DISCOVERY_ONLY]:
+      http.cache = None
+    return (api_version, http, service)
   except httplib2.ServerNotFoundError as e:
     systemErrorExit(4, e)
   except googleapiclient.errors.UnknownApiNameOrVersion:
