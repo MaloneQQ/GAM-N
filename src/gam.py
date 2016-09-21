@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.74.03'
+__version__ = u'3.74.04'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -4157,7 +4157,6 @@ ADDRESS_FIELDS_ARGUMENT_MAP = {
 
 def doUpdateCustomer():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  language = None
   body = {}
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
@@ -4169,15 +4168,11 @@ def doUpdateCustomer():
     elif myarg in [u'phone', u'phonenumber']:
       body[u'phoneNumber'] = getString(OB_STRING)
     elif myarg == u'language':
-#      body[u'language'] = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
-      language = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
+      body[u'language'] = getChoice(LANGUAGE_CODES_MAP, mapChoice=True)
     else:
       unknownArgumentExit()
   if body:
     callGAPI(cd.customers(), u'update', customerKey=GC_Values[GC_CUSTOMER_ID], body=body)
-  if language:
-    adminObj = getAdminSettingsObject()
-    callGData(adminObj, u'UpdateDefaultLanguage', defaultLanguage=language)
   print u'Updated customer'
 
 SERVICE_NAME_TO_ID_MAP = {
