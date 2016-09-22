@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.74.04'
+__version__ = u'3.74.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -1820,13 +1820,16 @@ class UnicodeDictReader(object):
   which is encoded in the given encoding.
   """
 
-  def __init__(self, f, dialect=csv.excel, encoding=u'utf-8', **kwds):
+  def __init__(self, f, dialect=csv.excel, encoding=u'utf-8', fieldnames=None, **kwds):
     self.encoding = encoding
     try:
       self.reader = csv.reader(UTF8Recoder(f, encoding) if self.encoding != u'utf-8' else f, dialect=dialect, **kwds)
-      self.fieldnames = self.reader.next()
-      if len(self.fieldnames) > 0 and self.fieldnames[0].startswith(codecs.BOM_UTF8):
-        self.fieldnames[0] = self.fieldnames[0].replace(codecs.BOM_UTF8, u'', 1)
+      if not fieldnames:
+        self.fieldnames = self.reader.next()
+        if len(self.fieldnames) > 0 and self.fieldnames[0].startswith(codecs.BOM_UTF8):
+          self.fieldnames[0] = self.fieldnames[0].replace(codecs.BOM_UTF8, u'', 1)
+      else:
+        self.fieldnames = fieldnames
     except (csv.Error, StopIteration):
       self.fieldnames = []
     except LookupError as e:
@@ -1843,7 +1846,18 @@ class UnicodeDictReader(object):
     if l < self.numfields:
       row += ['']*(self.numfields-l) # Must be '', not u''
     return dict((self.fieldnames[x], unicode(row[x], u'utf-8')) for x in range(self.numfields))
-#
+
+# Open a CSV file, get optional arguments [charset <String>] [fields <FieldNameList>]
+def openCSVFileReader(filename):
+  encoding = getCharSet()
+  if checkArgumentPresent([u'fields',]):
+    fieldnames = shlexSplitList(getString(OB_FIELD_NAME_LIST))
+  else:
+    fieldnames = None
+  f = openFile(filename)
+  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames)
+  return (f, csvFile)
+
 # Set global variables
 # Check for GAM updates based on status of noupdatecheck.txt
 #
@@ -2836,6 +2850,13 @@ def addDomainToEmailAddressOrUID(emailAddressOrUID, addDomain):
     return u'{0}{1}'.format(emailAddressOrUID, addDomain)
   return emailAddressOrUID
 
+def shlexSplitList(entity, dataDelimiter=' ,'):
+  import shlex
+  lexer = shlex.shlex(entity, posix=True)
+  lexer.whitespace = dataDelimiter
+  lexer.whitespace_split = True
+  return list(lexer)
+
 def splitEntityList(entity, dataDelimiter, shlexSplit):
   if not entity:
     return []
@@ -2843,11 +2864,7 @@ def splitEntityList(entity, dataDelimiter, shlexSplit):
     return [entity,]
   if not shlexSplit:
     return entity.split(dataDelimiter)
-  import shlex
-  lexer = shlex.shlex(entity, posix=True)
-  lexer.whitespace = dataDelimiter
-  lexer.whitespace_split = True
-  return list(lexer)
+  return shlexSplitList(entity, dataDelimiter)
 
 def getUsersToModify(entityType, entity, silent=False, member_type=None, checkNotSuspended=False):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
@@ -2941,9 +2958,7 @@ def getUsersToModify(entityType, entity, silent=False, member_type=None, checkNo
     if len(fileFieldNameList) < 2:
       putArgumentBack()
       invalidArgumentExit(OB_FILE_NAME_FIELD_NAME)
-    encoding = getCharSet()
-    f = openFile(fileFieldNameList[0])
-    csvFile = UnicodeDictReader(f, encoding=encoding)
+    f, csvFile = openCSVFileReader(fileFieldNameList[0])
     for fieldName in fileFieldNameList[1:]:
       if fieldName not in csvFile.fieldnames:
         csvFieldErrorExit(fieldName, csvFile.fieldnames, backupArg=True, checkForCharset=True)
@@ -3385,9 +3400,7 @@ def doCSV():
   if (filename == u'-') and (GC_Values[GC_DEBUG_LEVEL] > 0):
     putArgumentBack()
     usageErrorExit(MESSAGE_BATCH_CSV_DASH_DEBUG_INCOMPATIBLE.format(u'csv'))
-  encoding = getCharSet()
-  f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding)
+  f, csvFile = openCSVFileReader(filename)
   matchFields = getMatchFields(csvFile.fieldnames)
   checkArgumentPresent([GAM_CMD,], required=True)
   if CL_argvI == CL_argvLen:
@@ -6529,16 +6542,17 @@ def doPrintShowUserSchemas(csvFormat):
     sortCSVTitles([u'schemaId', u'schemaName', u'fields.Count'], titles)
     writeCSVfile(csvRows, titles, u'User Schemas', todrive)
 
-IM_TYPES = [u'custom', u'home', u'other', u'work']
-IM_PROTOCOLS = [u'custom_protocol', u'aim', u'gtalk', u'icq', u'jabber', u'msn', u'net_meeting', u'qq', u'skype', u'xmpp', u'yahoo']
 ADDRESS_TYPES = [u'custom', u'home', u'other', u'work']
+EXTERNALID_TYPES = [u'account', u'customer', u'network', u'organization']
+IM_PROTOCOLS = [u'custom_protocol', u'aim', u'gtalk', u'icq', u'jabber', u'msn', u'net_meeting', u'qq', u'skype', u'xmpp', u'yahoo']
+IM_TYPES = [u'custom', u'home', u'other', u'work']
+NOTE_TYPES = [u'text_plain', u'text_html']
 ORGANIZATION_TYPES = [u'domain_only', u'school', u'unknown', u'work']
+OTHEREMAIL_TYPES = [u'custom', u'home', u'other', u'work']
 PHONE_TYPES = [u'assistant', u'callback', u'car', u'company_main', u'custom', u'grand_central', u'home', u'home_fax', u'isdn', u'main', u'mobile', u'other', u'other_fax', u'pager', u'radio', u'telex', u'tty_tdd', u'work', u'work_fax', u'work_mobile', u'work_pager']
 RELATION_TYPES = [u'mother', u'father', u'sister', u'brother', u'manager', u'assistant', u'partner']
-OTHEREMAIL_TYPES = [u'custom', u'home', u'other', u'work']
-EXTERNALID_TYPES = [u'account', u'customer', u'network', u'organization']
+SCHEMA_TYPES = [u'custom', u'home', u'other', u'work']
 WEBSITE_TYPES = [u'home_page', u'blog', u'profile', u'work', u'home', u'other', u'ftp', u'reservations', u'app_install_page']
-NOTE_TYPES = [u'text_plain', u'text_html']
 
 UPDATE_USER_ARGUMENT_TO_PROPERTY_MAP = {
   u'address': u'addresses',
@@ -6836,13 +6850,17 @@ def getUserAttributes(updateCmd=False, noUid=False):
       up = u'customSchemas'
       body.setdefault(up, {})
       body[up].setdefault(schemaName, {})
-      is_multivalue = checkArgumentPresent(MULTIVALUE_ARGUMENT)
-      field_value = getString(OB_STRING)
-      if is_multivalue:
+      if checkArgumentPresent(MULTIVALUE_ARGUMENT):
         body[up][schemaName].setdefault(fieldName, [])
-        body[up][schemaName][fieldName].append({u'value': field_value})
+        schemaValue = {}
+        if checkArgumentPresent([u'type',]):
+          schemaValue[u'type'] = getChoice(SCHEMA_TYPES)
+          if schemaValue[u'type'] == u'custom':
+            schemaValue[u'customType'] = getString(OB_STRING)
+        schemaValue[u'value'] = getString(OB_STRING)
+        body[up][schemaName][fieldName].append(schemaValue)
       else:
-        body[up][schemaName][fieldName] = field_value
+        body[up][schemaName][fieldName] = getString(OB_STRING)
     else:
       unknownArgumentExit()
   if need_password:
@@ -7127,7 +7145,10 @@ def doInfoUser(user_email=None):
           if isinstance(user[u'customSchemas'][schema][field], list):
             print u'  %s:' % field
             for an_item in user[u'customSchemas'][schema][field]:
-              print convertUTF8(u'   %s' % an_item[u'value'])
+              print convertUTF8(u'   type: %s' % (an_item[u'type']))
+              if an_item[u'type'] == u'custom':
+                print convertUTF8(u'    customType: %s' % (an_item[u'customType']))
+              print convertUTF8(u'    value: %s' % (an_item[u'value']))
           else:
             print convertUTF8(u'  %s: %s' % (field, user[u'customSchemas'][schema][field]))
         print
@@ -7249,7 +7270,7 @@ def doPrintUsers():
       projection = u'basic'
       sortHeaders = True
       fieldsList = []
-    elif myarg == u'custom':
+    elif myarg in [u'custom', u'schemas']:
       fieldsList.append(u'customSchemas')
       customFieldMask = getString(OB_SCHEMA_NAME_LIST).replace(u' ', u',')
       if customFieldMask.lower() == u'all':

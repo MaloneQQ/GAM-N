@@ -10,6 +10,25 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+GAM 3.74.05
+
+Custom schema fields can be single-valued or multi-valued. Gam has always supported both but has not supported the
+type characteristic within a multi-valued schema field. In gam create/update user, schema fields are now specified as:
+    <SchemaName>.<FieldName> [multivalued [type work|home|other|(custom <CustomType>)]] <String>
+Examples:
+TestSchema.SVField <String> - value is <String>
+TestSchema.MVField <String> - type is work (default), value is <String>
+TestSchema.MVField type home <String> - type is home, value is <String>
+TestSchema.MVField type custom <CustomType> <String> - type is custom, customType is <CustomType>, value is <String>
+Compatability note: In the unlikely case that you are currently setting a multi-valued schema field with the value "type",
+i.e., TestSchema.MVField type, you will have to change this to TestSchema.MVField type work type.
+
+If you have external programs that produce multi-column files of data, but witout headers, you have to add a
+header row to the file before Gam can read the file as a CSV file. Now, you can use the file as is and specify the
+headers in Gam. There are several places where the headers can be specified:
+    csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>]
+    gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+
 GAM 3.74.04
 
 Use Directory API to update customer language.
