@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.74.05'
+__version__ = u'3.75.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -11114,8 +11114,6 @@ EMAILSETTINGS_OLD_NEW_OLD_FORWARD_ACTION_MAP = {
   }
 
 def setForward(users):
-  newAPI = False
-  action = forward_to = None
   enable = getBoolean()
   body = {u'enabled': enable}
   if enable:
@@ -11125,8 +11123,6 @@ def setForward(users):
         body[u'disposition'] = EMAILSETTINGS_FORWARD_POP_ACTION_CHOICES_MAP[myarg]
       elif myarg == u'confirm':
         pass
-      elif myarg == u'newapi':
-        newAPI = True
       elif myarg.find(u'@') != -1:
         body[u'emailAddress'] = normalizeEmailAddressOrUID(CL_argv[CL_argvI-1])
       else:
@@ -11135,40 +11131,20 @@ def setForward(users):
       missingChoiceExit(EMAILSETTINGS_FORWARD_POP_ACTION_CHOICES_MAP)
     if not body.get(u'emailAddress'):
       missingArgumentExit(OB_EMAIL_ADDRESS)
-  else:
-    while CL_argvI < CL_argvLen:
-      myarg = getArgument()
-      if myarg == u'newapi':
-        newAPI = True
-      else:
-        unknownArgumentExit()
-  if not newAPI:
-    emailSettings = getEmailSettingsObject()
-    if enable:
-      action = EMAILSETTINGS_OLD_NEW_OLD_FORWARD_ACTION_MAP[body[u'disposition']]
-      forward_to = body[u'emailAddress']
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    if newAPI:
-      user, gmail = buildGmailGAPIObject(user)
-      if not gmail:
-        continue
-      if enable:
-        print u"User: %s, Forward Enabled: %s, Forwarding Address: %s, Action: %s%s" % (user, enable, body[u'emailAddress'], body[u'disposition'], currentCount(i, count))
-      else:
-        print u"User: %s, Forward Enabled: %s%s" % (user, enable, currentCount(i, count))
-      callGAPI(gmail.users().settings(), u'updateAutoForwarding',
-               soft_errors=True,
-               userId=u'me', body=body)
+    user, gmail = buildGmailGAPIObject(user)
+    if not gmail:
+      continue
+    if enable:
+      print u"User: %s, Forward Enabled: %s, Forwarding Address: %s, Action: %s%s" % (user, enable, body[u'emailAddress'], body[u'disposition'], currentCount(i, count))
     else:
-      user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
-      if enable:
-        print u"User: %s, Forward Enabled: %s, Forwarding Address: %s, Action: %s%s" % (user, enable, body[u'emailAddress'], body[u'disposition'], currentCount(i, count))
-      else:
-        print u"User: %s, Forward Enabled: %s%s" % (user, enable, currentCount(i, count))
-      callGData(emailSettings, u'UpdateForwarding', soft_errors=True, username=userName, enable=enable, action=action, forward_to=forward_to)
+      print u"User: %s, Forward Enabled: %s%s" % (user, enable, currentCount(i, count))
+    callGAPI(gmail.users().settings(), u'updateAutoForwarding',
+             soft_errors=True,
+             userId=u'me', body=body)
 
 def printShowForward(users, csvFormat):
   def _showForward(user, i, count, result):
@@ -11202,41 +11178,27 @@ def printShowForward(users, csvFormat):
     todrive = False
     csvRows = []
     titles = [u'User', u'forwardEnabled', u'forwardTo', u'disposition']
-  newAPI = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
-    elif myarg == u'newapi':
-      newAPI = True
     else:
       unknownArgumentExit()
-  if not newAPI:
-    emailSettings = getEmailSettingsObject()
   i = 0
   count = len(users)
   for user in users:
     i += 1
-    if newAPI:
-      user, gmail = buildGmailGAPIObject(user)
-      if not gmail:
-        continue
-      result = callGAPI(gmail.users().settings(), u'getAutoForwarding',
-                        soft_errors=True,
-                        userId=u'me')
-      if result:
-        if not csvFormat:
-          _showForward(user, i, count, result)
-        else:
-          _printForward(user, result)
-    else:
-      user, userName, emailSettings.domain = splitEmailAddressOrUID(user)
-      result = callGData(emailSettings, u'GetForward', soft_errors=True, username=userName)
-      if result:
-        if not csvFormat:
-          _showForward(user, i, count, result)
-        else:
-          _printForward(user, result)
+    user, gmail = buildGmailGAPIObject(user)
+    if not gmail:
+      continue
+    result = callGAPI(gmail.users().settings(), u'getAutoForwarding',
+                      soft_errors=True,
+                      userId=u'me')
+    if result:
+      if not csvFormat:
+        _showForward(user, i, count, result)
+      else:
+        _printForward(user, result)
   if csvFormat:
     writeCSVfile(csvRows, titles, u'Forward', todrive)
 
@@ -11787,8 +11749,6 @@ def setVacation(users):
       body[responseBodyType] = message
     if not message and not body.get(u'responseSubject'):
       missingArgumentExit(u'message or subject')
-  else:
-    checkForExtraneousArguments()
   i = 0
   count = len(users)
   for user in users:
