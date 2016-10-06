@@ -10,6 +10,16 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+GAM 3.75.01
+
+The commands gam show fileinfo/filelist/filepath now show all file paths for a file or folder; previously, only one file path was shown.
+Whenever a file path is shown, there is also an indication as to whether the path is "orphaned", i.e., the file path does not start at the root of Drive.
+The headers for gam show filelist have been changed. Previously, there was a header "path" with a value showing one possible path to a file.
+Now, there is a header "paths" with a value indicating the number of paths to the file; the paths have headers "path.0", "orphaned.0", "path.1", "orphaned.1", ...
+    gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
+    gam <UserTypeEntity> print|show filelist [todrive] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
+    gam <UserTypeEntity> show filepath <DriveFileEntity>
+
 GAM 3.75.00
 
 Gam forward and print/show forward now use Gmail API. 
