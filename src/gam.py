@@ -9036,7 +9036,7 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'writerscanshare': u'writersCanShare',
   }
 
-FILEPATH_FIELDS = [u'mimeType', u'parents']
+FILEPATH_FIELDS = [u'mimeType', u'parents', u'title']
 
 def showDriveFileInfo(users):
   filepath = False
