@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.75.01'
+__version__ = u'3.75.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -8811,6 +8811,12 @@ def initializeDriveFileAttributes():
 def getDriveFileAttribute(body, parameters, myarg, update):
   if myarg == u'localfile':
     parameters[DFA_LOCALFILEPATH] = getString(OB_FILE_NAME)
+    try:
+      f = open(os.path.expanduser(parameters[DFA_LOCALFILEPATH]), u'rb')
+      f.close()
+    except IOError as e:
+      putArgumentBack()
+      usageErrorExit(u'{0}: {1}'.format(parameters[DFA_LOCALFILEPATH], e.strerror))
     parameters[DFA_LOCALFILENAME] = os.path.basename(parameters[DFA_LOCALFILEPATH])
     body.setdefault(u'title', parameters[DFA_LOCALFILENAME])
     body[u'mimeType'] = mimetypes.guess_type(parameters[DFA_LOCALFILEPATH])[0]
@@ -8917,17 +8923,10 @@ def printDriveSettings(users):
     csvRows.append(row)
   writeCSVfile(csvRows, titles, u'User Drive Settings', todrive)
 
-def initFilePathInfo(drive):
-  filePathInfo = {u'rootFolderId': None, u'ids': {}, u'allPaths': {}, u'localPaths': None}
-  try:
-    filePathInfo[u'rootFolderId'] = callGAPI(drive.about(), u'get',
-                                             throw_reasons=GAPI_DRIVE_THROW_REASONS,
-                                             fields=u'rootFolderId')[u'rootFolderId']
-  except (GAPI_serviceNotAvailable, GAPI_authError):
-    pass
-  return filePathInfo
+def initFilePathInfo():
+  return {u'ids': {}, u'allPaths': {}, u'localPaths': None}
 
-def getFilePaths(drive, fileId, initialResult, filePathInfo):
+def getFilePaths(drive, initialResult, filePathInfo):
   def _followParent(paths, parentId):
     try:
       paths.setdefault(parentId, {})
@@ -8944,25 +8943,24 @@ def getFilePaths(drive, fileId, initialResult, filePathInfo):
             filePathInfo[u'allPaths'][lparentId] = paths[parentId][lparentId]
           else:
             paths[parentId][lparentId] = filePathInfo[u'allPaths'][lparentId]
-      else:
-        paths[parentId] = parentId != filePathInfo[u'rootFolderId']
     except (GAPI_fileNotFound, GAPI_serviceNotAvailable, GAPI_authError):
       pass
 
   def _makeFilePaths(localPaths, fplist, filePaths, name):
     for k, v in localPaths.items():
       fplist.append(filePathInfo[u'ids'][k])
-      if not isinstance(v, dict):
+      if not v:
         fp = fplist[:]
         fp.reverse()
         fp.append(name)
-        filePaths.append((os.path.join(*fp), v))
+        filePaths.append(os.path.join(*fp))
         fplist.pop()
         return
       _makeFilePaths(v, fplist, filePaths, name)
       fplist.pop()
     return
 
+  filePaths = []
   parents = initialResult[u'parents']
   if parents:
     filePathInfo[u'localPaths'] = {}
@@ -8972,10 +8970,7 @@ def getFilePaths(drive, fileId, initialResult, filePathInfo):
         _followParent(filePathInfo[u'allPaths'], parentId)
       filePathInfo[u'localPaths'][parentId] = filePathInfo[u'allPaths'][parentId]
     fplist = []
-    filePaths = []
     _makeFilePaths(filePathInfo[u'localPaths'], fplist, filePaths, initialResult[u'title'])
-  else:
-    filePaths = [(initialResult[u'title'], fileId != filePathInfo[u'rootFolderId'])]
   return ([u'Drive Folder', u'Drive File'][initialResult[u'mimeType'] != MIMETYPE_GA_FOLDER], filePaths)
 
 DRIVEFILE_FIELDS_CHOICES_MAP = {
@@ -9089,7 +9084,7 @@ def showDriveFileInfo(users):
       print u'User: {0}, No Drive Files/Folders{1}'.format(user, currentCount(i, count))
       continue
     if filepath:
-      filePathInfo = initFilePathInfo(drive)
+      filePathInfo = initFilePathInfo()
     print u'User: {0}, Drive Files/Folders:{1}'.format(user, currentCount(i, count))
     j = 0
     for fileId in fileIdSelection[u'fileIds']:
@@ -9100,11 +9095,11 @@ def showDriveFileInfo(users):
                           fileId=fileId, fields=fields)
         print u'  {0}: {1}{2}'.format([u'Drive Folder', u'Drive File'][result[u'mimeType'] != MIMETYPE_GA_FOLDER], u'{0} ({1})'.format(result[u'title'], fileId), currentCount(j, jcount))
         if filepath:
-          _, paths = getFilePaths(drive, fileId, result, filePathInfo)
+          _, paths = getFilePaths(drive, result, filePathInfo)
           kcount = len(paths)
           printKeyValueList(u'    ', [u'paths', kcount])
           for path in paths:
-            printKeyValueList(u'      ', [u'path', path[0], u'orphaned', path[1]])
+            printKeyValueList(u'      ', [u'path', path])
         showJSON(None, result, skip_objects, spacing=u'    ')
       except GAPI_fileNotFound:
         print u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCount(j, jcount))
@@ -9209,13 +9204,10 @@ def printDriveFileList(users):
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
-    fields = u'nextPageToken,items('
-    if u'id' not in fieldsList:
-      fieldsList.append(u'id')
-      skip_objects.append(u'id')
     if filepath:
       skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
+    fields = u'nextPageToken,items('
     if fieldsList:
       fields += u','.join(set(fieldsList))
       if labelsList:
@@ -9226,8 +9218,6 @@ def printDriveFileList(users):
   elif not allfields:
     for field in [u'name', u'alternatelink']:
       addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field]]}, fieldsList, fieldsTitles, titles)
-    fieldsList.append(u'id')
-    skip_objects.append(u'id')
     if filepath:
       skip_objects.extend(FILEPATH_FIELDS)
       fieldsList.extend(FILEPATH_FIELDS)
@@ -9246,7 +9236,7 @@ def printDriveFileList(users):
     if not drive:
       continue
     if filepath:
-      filePathInfo = initFilePathInfo(drive)
+      filePathInfo = initFilePathInfo()
     sys.stderr.write(u'Getting files for %s...\n' % user)
     page_message = u' got %%%%total_items%%%% files for %s...\n' % user
     feed = callGAPIpages(drive.files(), u'list', u'items',
@@ -9255,7 +9245,7 @@ def printDriveFileList(users):
     for f_file in feed:
       a_file = {u'Owner': user}
       if filepath:
-        _, paths = getFilePaths(drive, f_file[u'id'], f_file, filePathInfo)
+        _, paths = getFilePaths(drive, f_file, filePathInfo)
         jcount = len(paths)
         a_file[u'paths'] = jcount
         j = 0
@@ -9263,11 +9253,7 @@ def printDriveFileList(users):
           key = u'path.{0}'.format(j)
           if key not in titles:
             titles.append(key)
-          a_file[key] = path[0]
-          key = u'orphaned.{0}'.format(j)
-          if key not in titles:
-            titles.append(key)
-          a_file[key] = path[1]
+          a_file[key] = path
           j += 1
       for attrib in f_file:
         if attrib in skip_objects:
@@ -9326,7 +9312,7 @@ def showDriveFilePath(users):
     if jcount == 0:
       print u'No files to show for %s' % user
       continue
-    filePathInfo = initFilePathInfo(drive)
+    filePathInfo = initFilePathInfo()
     j = 0
     for fileId in fileIdSelection[u'fileIds']:
       j += 1
@@ -9334,13 +9320,13 @@ def showDriveFilePath(users):
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=u'{0},mimeType,parents(id)'.format(u'title'))
-        entityType, paths = getFilePaths(drive, fileId, result, filePathInfo)
+        entityType, paths = getFilePaths(drive, result, filePathInfo)
         kcount = len(paths)
         print u'{0}: {1}, {2}{3}'.format(entityType, u'{0} ({1})'.format(result[u'title'], fileId), u'Show {0} Drive Paths'.format(kcount), currentCount(j, jcount))
         k = 0
         for path in paths:
           k += 1
-          print u'  Drive Path: {0}, Orphaned Drive File: {1}{2}'.format(path[0], path[1], currentCount(k, kcount))
+          print u'  Drive Path: {0}{1}'.format(path, currentCount(k, kcount))
       except GAPI_fileNotFound:
         print u'User: {0}, Drive File/Folder ID: {1}, Does not exist'.format(user, fileId)
       except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -9429,7 +9415,10 @@ def addDriveFile(users):
       for a_parent in more_parents:
         body[u'parents'].append({u'id': a_parent})
     if parameters[DFA_LOCALFILEPATH]:
-      media_body = googleapiclient.http.MediaFileUpload(parameters[DFA_LOCALFILEPATH], mimetype=parameters[DFA_LOCALMIMETYPE], resumable=True)
+      try:
+        media_body = googleapiclient.http.MediaFileUpload(parameters[DFA_LOCALFILEPATH], mimetype=parameters[DFA_LOCALMIMETYPE], resumable=True)
+      except IOError as e:
+        systemErrorExit(FILE_ERROR_RC, e)
     result = callGAPI(drive.files(), u'insert',
                       convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE], media_body=media_body, body=body, fields=u'id')
     if parameters[DFA_LOCALFILENAME]:
@@ -9462,7 +9451,10 @@ def doUpdateDriveFile(users):
       continue
     if operation == u'update':
       if parameters[DFA_LOCALFILEPATH]:
-        media_body = googleapiclient.http.MediaFileUpload(parameters[DFA_LOCALFILEPATH], mimetype=parameters[DFA_LOCALMIMETYPE], resumable=True)
+        try:
+          media_body = googleapiclient.http.MediaFileUpload(parameters[DFA_LOCALFILEPATH], mimetype=parameters[DFA_LOCALMIMETYPE], resumable=True)
+        except IOError as e:
+          systemErrorExit(FILE_ERROR_RC, e)
       for fileId in fileIdSelection[u'fileIds']:
         if media_body:
           result = callGAPI(drive.files(), u'update',
