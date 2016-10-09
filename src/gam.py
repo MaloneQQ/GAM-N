@@ -9185,6 +9185,13 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
 FILELIST_FIELDS = [u'id', u'mimeType']
 
 def printDriveFileList(users):
+  def _stripMeInOwners(query):
+    if query == u"'me' in owners":
+      return None
+    if query.startswith(u"'me' in owners and "):
+      return query[19:]
+    return query
+
   def _setSelectionFields():
     if fileIdSelection != None and maxdepth != 0:
       skip_objects.extend([field for field in FILELIST_FIELDS if field not in fieldsList])
@@ -9233,7 +9240,7 @@ def printDriveFileList(users):
           if attrib not in titles:
             titles.append(attrib)
         else:
-          sys.stderr.write(u'File ID: {0}, Attribute: {1}, Unknown type: {2}\n'.format(f_file[u'id'], attrib, type(f_file[attrib])))
+          sys.stderr.write(u'Drive File ID: {0}, Attribute: {1}, Unknown type: {2}\n'.format(f_file[u'id'], attrib, type(f_file[attrib])))
       elif attrib == u'labels':
         for dict_attrib in f_file[attrib]:
           a_file[dict_attrib] = f_file[attrib][dict_attrib]
@@ -9258,7 +9265,7 @@ def printDriveFileList(users):
       for child in children:
         _recursivePrintFileList(child, depth+1)
 
-  allfields = filepath = showdepth = todrive = False
+  allfields = anyowner = filepath = showdepth = todrive = False
   maxdepth = 0
   fieldsList = []
   fieldsTitles = {}
@@ -9267,7 +9274,7 @@ def printDriveFileList(users):
   skip_objects = []
   titles = [u'Owner',]
   csvRows = []
-  query = u'"me" in owners'
+  query = u"'me' in owners"
   childrenQuery = query+u" and '{0}' in parents"
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
@@ -9284,21 +9291,16 @@ def printDriveFileList(users):
       else:
         orderByList.append(u'{0} desc'.format(fieldName))
     elif myarg == u'query':
-      if query:
-        query += u' and '
-      query += getString(OB_QUERY)
+      query += u' and '+getString(OB_QUERY)
     elif myarg == u'fullquery':
       query = getString(OB_QUERY)
+    elif myarg == u'anyowner':
+      anyowner = True
+      childrenQuery = u"'{0}' in parents"
     elif myarg == u'select':
       fileIdSelection = getDriveFileEntity()
     elif myarg == u'depth':
       maxdepth = getInteger(minVal=-1)
-    elif myarg == u'anyowner':
-      if query == u"'me' in owners":
-        query = u''
-      elif query.startswith(u"'me' in owners and "):
-        query = query[19:]
-      childrenQuery = u"'{0}' in parents"
     elif myarg == u'allfields':
       fieldsList = []
       allfields = True
@@ -9319,8 +9321,8 @@ def printDriveFileList(users):
       infoFields += u'labels({0})'.format(u','.join(set(labelsList)))
     fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, infoFields)
   elif not allfields:
-    for field in [u'name', u'alternatelink']:
-      addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field]]}, fieldsList, fieldsTitles, titles)
+    for field in [u'name', DRIVE_FILE_VIEW_LINK]:
+      addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field.lower()]]}, fieldsList, fieldsTitles, titles)
     _setSelectionFields()
     infoFields = u','.join(set(fieldsList))
     fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, infoFields)
@@ -9338,6 +9340,8 @@ def printDriveFileList(users):
   for user in users:
     i += 1
     if fileIdSelection == None:
+      if anyowner:
+        query = _stripMeInOwners(query)
       user, drive = buildDriveGAPIObject(user)
       if not drive:
         continue
@@ -9361,6 +9365,8 @@ def printDriveFileList(users):
     else:
       showdepth = True
       addTitlesToCSVfile([u'depth',], titles)
+      if anyowner:
+        fileIdSelection[u'query'] = _stripMeInOwners(fileIdSelection[u'query'])
       user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
       if not drive:
         continue
