@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.75.02'
+__version__ = u'3.76.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -524,6 +524,22 @@ GAPI_DRIVE_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_AUTH_ERROR]
 GAPI_GMAIL_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE, GAPI_BAD_REQUEST]
 GAPI_GPLUS_THROW_REASONS = [GAPI_SERVICE_NOT_AVAILABLE]
 GAPI_USER_GET_THROW_REASONS = [GAPI_USER_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN, GAPI_BAD_REQUEST, GAPI_BACKEND_ERROR, GAPI_SYSTEM_ERROR]
+#
+DRIVE_API_VERSION = u'v2'
+#
+DRIVE_FILE_NAME = u'title'
+DRIVE_FILE_VIEW_LINK = u'alternateLink'
+DRIVE_FILES_LIST = u'items'
+DRIVE_CREATE_FILE = u'insert'
+DRIVE_PATCH_FILE = u'patch'
+DRIVE_UPDATE_FILE = u'update'
+#
+DRIVE_PERMISSIONS_NAME = u'name'
+DRIVE_PERMISSIONS_LIST = u'items'
+DRIVE_CREATE_PERMISSIONS = u'insert'
+DRIVE_PATCH_PERMISSIONS = u'patch'
+#
+DRIVE_REVISIONS_LIST = u'items'
 # Object BNF names
 OB_ACCESS_TOKEN = u'AccessToken'
 OB_ARGUMENT = u'argument'
@@ -3127,10 +3143,10 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       print u'{0}{1}'.format(WARNING_PREFIX, MESSAGE_RESULTS_TOO_LARGE_FOR_GOOGLE_SPREADSHEET)
       convert = False
     drive = buildGAPIObject(GAPI_DRIVE_API)
-    result = callGAPI(drive.files(), u'insert', convert=convert,
-                      body={u'description': u' '.join(CL_argv), u'title': u'%s - %s' % (GC_Values[GC_DOMAIN], list_type), u'mimeType': u'text/csv'},
+    result = callGAPI(drive.files(), DRIVE_CREATE_FILE,
+                      convert=convert, body={u'description': u' '.join(CL_argv), DRIVE_FILE_NAME: u'{0} - {1}'.format(GC_Values[GC_DOMAIN], list_type), u'mimeType': u'text/csv'},
                       media_body=googleapiclient.http.MediaInMemoryUpload(string_file.getvalue(), mimetype=u'text/csv'))
-    file_url = result[u'alternateLink']
+    file_url = result[DRIVE_FILE_VIEW_LINK]
     if GC_Values[GC_NO_BROWSER]:
       msg_txt = u'Drive file uploaded to:\n %s' % file_url
       msg_subj = u'%s - %s' % (GC_Values[GC_DOMAIN], list_type)
@@ -6456,7 +6472,7 @@ def doCreateOrUpdateUserSchema(updateCmd):
     try:
       body = callGAPI(cd.schemas(), u'get', throw_reasons=[GAPI_NOT_FOUND], customerId=GC_Values[GC_CUSTOMER_ID], schemaKey=schemaKey)
     except GAPI_notFound:
-      print u'ERROR: Schema %s does not exist.' % schemaKey
+      sys.stderr.write(u'ERROR: Schema %s does not exist.\n' % schemaKey)
       sys.exit(3)
   else:
     body = {u'schemaName': schemaKey, u'fields': []}
@@ -6926,7 +6942,7 @@ def doUndeleteUser():
       if str(deleted_user[u'primaryEmail']).lower() == user:
         matching_users.append(deleted_user)
     if len(matching_users) < 1:
-      print u'ERROR: could not find deleted user with that address.'
+      sys.stderr.write(u'ERROR: could not find deleted user with that address.\n')
       sys.exit(3)
     elif len(matching_users) > 1:
       print u'ERROR: more than one matching deleted %s user. Please select the correct one to undelete and specify with "gam undelete user uid:<uid>"' % user
@@ -7508,8 +7524,8 @@ def doDeleteGuardian():
     # See if there's a pending invitation
     results = callGAPIpages(croom.userProfiles().guardianInvitations(), u'list', items=u'guardianInvitations', studentId=studentId, invitedEmailAddress=guardianId, states=GUARDIAN_STATES)
     if len(results) < 1:
-      print u'%s is not a guardian of %s and no invitation exists.' % (guardianId, studentId)
-      sys.exit(0)
+      sys.stderr.write(u'ERROR: %s is not a guardian of %s and no invitation exists.\n' % (guardianId, studentId))
+      sys.exit(3)
     for result in results:
       if result[u'state'] != u'PENDING':
         print u'%s is not a guardian of %s and invitation %s status is %s, not PENDING. Doing nothing.' % (guardianId, studentId, result[u'invitationId'], result[u'state'])
@@ -8685,11 +8701,11 @@ def transferSecCals(users):
                    calendarId=calendarId, ruleId=ruleId)
 
 def doDriveSearch(drive, query=None):
-  print u'Searching for files with query: "%s"...' % query
+  sys.stderr.write(u'Searching for files with query: "{0}"...\n'.format(query))
   page_message = u' got %%total_items%% files...\n'
-  files = callGAPIpages(drive.files(), u'list', u'items',
+  files = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
                         page_message=page_message,
-                        q=query, fields=u'nextPageToken,items(id)', maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+                        q=query, fields=u'nextPageToken,{0}(id)'.format(DRIVE_FILES_LIST), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
   return [f_file[u'id'] for f_file in files]
 
 def cleanFileIDsList(fileIdSelection, fileIds):
@@ -8698,10 +8714,22 @@ def cleanFileIDsList(fileIdSelection, fileIds):
   i = 0
   for fileId in fileIds:
     if fileId[:8].lower() == u'https://' or fileId[:7].lower() == u'http://':
-      fileId = fileId[fileId.find(u'/d/')+3:]
-      if fileId.find(u'/') != -1:
-        fileId = fileId[:fileId.find(u'/')]
-    if fileId.lower() == u'root':
+      loc = fileId.find(u'/d/')
+      if loc > 0:
+        fileId = fileId[loc+3:]
+        loc = fileId.find(u'/')
+        if loc != -1:
+          fileId = fileId[:loc]
+      else:
+        loc = fileId.find(u'/folderview?id=')
+        if loc > 0:
+          fileId = fileId[loc+15:]
+          loc = fileId.find(u'&')
+          if loc != -1:
+            fileId = fileId[:loc]
+        else:
+          continue
+    elif fileId.lower() == u'root':
       fileIdSelection[u'root'].append(i)
     fileIdSelection[u'fileIds'].append(fileId)
     i += 1
@@ -8709,19 +8737,10 @@ def cleanFileIDsList(fileIdSelection, fileIds):
 def initDriveFileEntity():
   return {u'fileIds': [], u'query': None, u'root': []}
 
-def getDriveFileEntity(default=None, ignore=None):
+def getDriveFileEntity():
   fileIdSelection = initDriveFileEntity()
-  myarg = getString(OB_DRIVE_FILE_ID, checkBlank=True, optional=default)
-  if not myarg:
-    if default:
-      cleanFileIDsList(fileIdSelection, default)
-    return fileIdSelection
+  myarg = getString(OB_DRIVE_FILE_ID, checkBlank=True)
   mycmd = myarg.lower()
-  if ignore and mycmd in ignore:
-    putArgumentBack()
-    if default:
-      cleanFileIDsList(fileIdSelection, default)
-    return fileIdSelection
   if mycmd == u'id':
     cleanFileIDsList(fileIdSelection, getStringReturnInList(OB_DRIVE_FILE_ID))
   elif mycmd == u'ids':
@@ -8731,9 +8750,9 @@ def getDriveFileEntity(default=None, ignore=None):
   elif mycmd[:6] == u'query:':
     fileIdSelection[u'query'] = myarg[6:]
   elif mycmd == u'drivefilename':
-    fileIdSelection[u'query'] = u"'me' in owners and title = '{0}'".format(getString(OB_DRIVE_FILE_NAME))
+    fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
   elif mycmd[:14] == u'drivefilename:':
-    fileIdSelection[u'query'] = u"'me' in owners and title = '{0}'".format(myarg[14:])
+    fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
   elif mycmd == u'root':
     cleanFileIDsList(fileIdSelection, [mycmd,])
   else:
@@ -8818,7 +8837,7 @@ def getDriveFileAttribute(body, parameters, myarg, update):
       putArgumentBack()
       usageErrorExit(u'{0}: {1}'.format(parameters[DFA_LOCALFILEPATH], e.strerror))
     parameters[DFA_LOCALFILENAME] = os.path.basename(parameters[DFA_LOCALFILEPATH])
-    body.setdefault(u'title', parameters[DFA_LOCALFILENAME])
+    body.setdefault(DRIVE_FILE_NAME, parameters[DFA_LOCALFILENAME])
     body[u'mimeType'] = mimetypes.guess_type(parameters[DFA_LOCALFILEPATH])[0]
     if body[u'mimeType'] == None:
       body[u'mimeType'] = u'application/octet-stream'
@@ -8932,8 +8951,8 @@ def getFilePaths(drive, initialResult, filePathInfo):
       paths.setdefault(parentId, {})
       result = callGAPI(drive.files(), u'get',
                         throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                        fileId=parentId, fields=u'{0},parents(id)'.format(u'title'))
-      filePathInfo[u'ids'][parentId] = result[u'title']
+                        fileId=parentId, fields=u'{0},parents(id)'.format(DRIVE_FILE_NAME))
+      filePathInfo[u'ids'][parentId] = result[DRIVE_FILE_NAME]
       parents = result[u'parents']
       if parents:
         for lparent in parents:
@@ -8970,11 +8989,11 @@ def getFilePaths(drive, initialResult, filePathInfo):
         _followParent(filePathInfo[u'allPaths'], parentId)
       filePathInfo[u'localPaths'][parentId] = filePathInfo[u'allPaths'][parentId]
     fplist = []
-    _makeFilePaths(filePathInfo[u'localPaths'], fplist, filePaths, initialResult[u'title'])
+    _makeFilePaths(filePathInfo[u'localPaths'], fplist, filePaths, initialResult[DRIVE_FILE_NAME])
   return ([u'Drive Folder', u'Drive File'][initialResult[u'mimeType'] != MIMETYPE_GA_FOLDER], filePaths)
 
 DRIVEFILE_FIELDS_CHOICES_MAP = {
-  u'alternatelink': u'alternateLink',
+  u'alternatelink': DRIVE_FILE_VIEW_LINK,
   u'appdatacontents': u'appDataContents',
   u'cancomment': u'canComment',
   u'canreadrevisions': u'canReadRevisions',
@@ -9008,7 +9027,7 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'modifiedbyuser': u'modifiedByMeDate',
   u'modifieddate': u'modifiedDate',
   u'modifiedtime': u'modifiedDate',
-  u'name': u'title',
+  u'name': DRIVE_FILE_NAME,
   u'originalfilename': u'originalFilename',
   u'ownedbyme': u'ownedByMe',
   u'ownernames': u'ownerNames',
@@ -9024,7 +9043,7 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'sharinguser': u'sharingUser',
   u'spaces': u'spaces',
   u'thumbnaillink': u'thumbnailLink',
-  u'title': u'title',
+  u'title': DRIVE_FILE_NAME,
   u'userpermission': u'userPermission',
   u'version': u'version',
   u'viewedbyme': u'labels(viewed)',
@@ -9036,7 +9055,8 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   u'writerscanshare': u'writersCanShare',
   }
 
-FILEPATH_FIELDS = [u'mimeType', u'parents', u'title']
+FILEINFO_FIELDS = [DRIVE_FILE_NAME, u'mimeType']
+FILEPATH_FIELDS = [u'mimeType', u'parents', DRIVE_FILE_NAME]
 
 def showDriveFileInfo(users):
   filepath = False
@@ -9058,12 +9078,7 @@ def showDriveFileInfo(users):
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
-    if u'title' not in fieldsList:
-      fieldsList.append(u'title')
-      skip_objects.append(u'title')
-    if u'mimeType' not in fieldsList:
-      fieldsList.append(u'mimeType')
-      skip_objects.append(u'mimeType')
+    skip_objects.extend([field for field in FILEINFO_FIELDS if field not in fieldsList])
     if filepath:
       skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
@@ -9093,7 +9108,7 @@ def showDriveFileInfo(users):
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId, fields=fields)
-        print u'  {0}: {1}{2}'.format([u'Drive Folder', u'Drive File'][result[u'mimeType'] != MIMETYPE_GA_FOLDER], u'{0} ({1})'.format(result[u'title'], fileId), currentCount(j, jcount))
+        print u'  {0}: {1}{2}'.format([u'Drive Folder', u'Drive File'][result[u'mimeType'] != MIMETYPE_GA_FOLDER], u'{0} ({1})'.format(result[DRIVE_FILE_NAME], fileId), currentCount(j, jcount))
         if filepath:
           _, paths = getFilePaths(drive, result, filePathInfo)
           kcount = len(paths)
@@ -9102,7 +9117,7 @@ def showDriveFileInfo(users):
             printKeyValueList(u'      ', [u'path', path])
         showJSON(None, result, skip_objects, spacing=u'    ')
       except GAPI_fileNotFound:
-        print u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCount(j, jcount))
+        sys.stderr.write(u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCountNL(j, jcount)))
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(u'User', user, i, count)
         break
@@ -9128,15 +9143,15 @@ def showDriveFileRevisions(users):
       try:
         result = callGAPI(drive.revisions(), u'list',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND, GAPI_BAD_REQUEST],
-                          fileId=fileId, fields=u'items')
+                          fileId=fileId, fields=DRIVE_REVISIONS_LIST)
         print u'{0}: {1}{2}'.format(u'Drive File ID', fileId, currentCount(j, jcount))
-        for revision in result[u'items']:
+        for revision in result[DRIVE_REVISIONS_LIST]:
           print u'  Revision ID: {0}'.format(revision[u'id'])
           showJSON(None, revision, skip_objects=[u'kind', u'etag', u'etags', u'id'], spacing=u'  ')
       except GAPI_fileNotFound:
-        print u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCount(j, jcount))
+        sys.stderr.write(u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCountNL(j, jcount)))
       except GAPI_badRequest as e:
-        print u'User: {0}, {1}: {2}, {3}{4}'.format(user, u'Drive File/Folder ID', fileId, e.message, currentCount(j, jcount))
+        sys.stderr.write(u'User: {0}, {1}: {2}, {3}{4}'.format(user, u'Drive File/Folder ID', fileId, e.message, currentCountNL(j, jcount)))
       except (GAPI_serviceNotAvailable, GAPI_authError):
         entityServiceNotApplicableWarning(u'User', user, i, count)
         break
@@ -9155,20 +9170,96 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'modifiedbyuser': u'modifiedByMeDate',
   u'modifieddate': u'modifiedDate',
   u'modifiedtime': u'modifiedDate',
-  u'name': u'title',
+  u'name': DRIVE_FILE_NAME,
   u'quotabytesused': u'quotaBytesUsed',
   u'quotaused': u'quotaBytesUsed',
   u'recency': u'recency',
   u'sharedwithmedate': u'sharedWithMeDate',
   u'sharedwithmetime': u'sharedWithMeDate',
   u'starred': u'starred',
-  u'title': u'title',
+  u'title': DRIVE_FILE_NAME,
   u'viewedbymedate': u'lastViewedByMeDate',
   u'viewedbymetime': u'lastViewedByMeDate',
   }
 
+FILELIST_FIELDS = [u'id', u'mimeType']
+
 def printDriveFileList(users):
-  allfields = filepath = todrive = False
+  def _setSelectionFields():
+    if fileIdSelection != None and maxdepth != 0:
+      skip_objects.extend([field for field in FILELIST_FIELDS if field not in fieldsList])
+      fieldsList.extend(FILELIST_FIELDS)
+    if filepath:
+      skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
+      fieldsList.extend(FILEPATH_FIELDS)
+
+  def _printFileList(f_file, depth=None):
+    a_file = {u'Owner': user}
+    if showdepth:
+      a_file[u'depth'] = depth
+    if filepath:
+      _, paths = getFilePaths(drive, f_file, filePathInfo)
+      kcount = len(paths)
+      a_file[u'paths'] = kcount
+      k = 0
+      for path in paths:
+        key = u'path.{0}'.format(k)
+        if key not in titles:
+          titles.append(key)
+        a_file[key] = path
+        k += 1
+    for attrib in f_file:
+      if attrib in skip_objects:
+        continue
+      if not isinstance(f_file[attrib], dict):
+        if isinstance(f_file[attrib], list):
+          if f_file[attrib]:
+            if attrib not in titles:
+              titles.append(attrib)
+            if isinstance(f_file[attrib][0], (str, unicode, int, bool)):
+              a_file[attrib] = u' '.join(f_file[attrib])
+            else:
+              a_file[attrib] = len(f_file[attrib])
+              for j, l_attrib in enumerate(f_file[attrib]):
+                for list_attrib in l_attrib:
+                  if list_attrib in [u'kind', u'etag', u'selfLink']:
+                    continue
+                  x_attrib = u'{0}.{1}.{2}'.format(attrib, j, list_attrib)
+                  a_file[x_attrib] = l_attrib[list_attrib]
+                  if x_attrib not in titles:
+                    titles.append(x_attrib)
+        elif isinstance(f_file[attrib], (str, unicode, int, bool)):
+          a_file[attrib] = f_file[attrib]
+          if attrib not in titles:
+            titles.append(attrib)
+        else:
+          sys.stderr.write(u'File ID: {0}, Attribute: {1}, Unknown type: {2}\n'.format(f_file[u'id'], attrib, type(f_file[attrib])))
+      elif attrib == u'labels':
+        for dict_attrib in f_file[attrib]:
+          a_file[dict_attrib] = f_file[attrib][dict_attrib]
+          if dict_attrib not in titles:
+            titles.append(dict_attrib)
+      else:
+        for dict_attrib in f_file[attrib]:
+          if dict_attrib in [u'kind', u'etag']:
+            continue
+          x_attrib = u'{0}.{1}'.format(attrib, dict_attrib)
+          a_file[x_attrib] = f_file[attrib][dict_attrib]
+          if x_attrib not in titles:
+            titles.append(x_attrib)
+    csvRows.append(a_file)
+
+  def _recursivePrintFileList(f_file, depth):
+    _printFileList(f_file, depth)
+    if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
+      children = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
+                               soft_errors=True,
+                               q=childrenQuery.format(f_file[u'id']), orderBy=orderBy, fields=fields)
+      for child in children:
+        _recursivePrintFileList(child, depth+1)
+
+  allfields = filepath = showdepth = todrive = False
+  maxdepth = 0
   fieldsList = []
   fieldsTitles = {}
   labelsList = []
@@ -9177,6 +9268,9 @@ def printDriveFileList(users):
   titles = [u'Owner',]
   csvRows = []
   query = u'"me" in owners'
+  childrenQuery = query+u" and '{0}' in parents"
+  fileIdSelection = None
+  body, parameters = initializeDriveFileAttributes()
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
@@ -9185,15 +9279,26 @@ def printDriveFileList(users):
       filepath = True
     elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
-      sortOrder = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True)
-      if sortOrder != u'DESCENDING':
+      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
         orderByList.append(fieldName)
       else:
         orderByList.append(u'{0} desc'.format(fieldName))
     elif myarg == u'query':
-      query += u' and %s' % getString(OB_QUERY)
+      if query:
+        query += u' and '
+      query += getString(OB_QUERY)
     elif myarg == u'fullquery':
       query = getString(OB_QUERY)
+    elif myarg == u'select':
+      fileIdSelection = getDriveFileEntity()
+    elif myarg == u'depth':
+      maxdepth = getInteger(minVal=-1)
+    elif myarg == u'anyowner':
+      if query == u"'me' in owners":
+        query = u''
+      elif query.startswith(u"'me' in owners and "):
+        query = query[19:]
+      childrenQuery = u"'{0}' in parents"
     elif myarg == u'allfields':
       fieldsList = []
       allfields = True
@@ -9204,26 +9309,23 @@ def printDriveFileList(users):
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
-    if filepath:
-      skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
-      fieldsList.extend(FILEPATH_FIELDS)
-    fields = u'nextPageToken,items('
+    _setSelectionFields()
+    infoFields = ''
     if fieldsList:
-      fields += u','.join(set(fieldsList))
+      infoFields += u','.join(set(fieldsList))
       if labelsList:
-        fields += u','
+        infoFields += u','
     if labelsList:
-      fields += u'labels({0})'.format(u','.join(set(labelsList)))
-    fields += u')'
+      infoFields += u'labels({0})'.format(u','.join(set(labelsList)))
+    fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, infoFields)
   elif not allfields:
     for field in [u'name', u'alternatelink']:
       addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field]]}, fieldsList, fieldsTitles, titles)
-    if filepath:
-      skip_objects.extend(FILEPATH_FIELDS)
-      fieldsList.extend(FILEPATH_FIELDS)
-    fields = u'nextPageToken,items({0})'.format(u','.join(set(fieldsList)))
+    _setSelectionFields()
+    infoFields = u','.join(set(fieldsList))
+    fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, infoFields)
   else:
-    fields = u'*'
+    infoFields = fields = u'*'
     skip_objects = [u'kind', u'etag']
   if orderByList:
     orderBy = u','.join(orderByList)
@@ -9231,71 +9333,56 @@ def printDriveFileList(users):
     orderBy = None
   if filepath:
     addTitlesToCSVfile([u'paths',], titles)
+  i = 0
+  count = len(users)
   for user in users:
-    user, drive = buildDriveGAPIObject(user)
-    if not drive:
-      continue
-    if filepath:
-      filePathInfo = initFilePathInfo()
-    sys.stderr.write(u'Getting files for %s...\n' % user)
-    page_message = u' got %%%%total_items%%%% files for %s...\n' % user
-    feed = callGAPIpages(drive.files(), u'list', u'items',
-                         page_message=page_message, soft_errors=True,
-                         q=query, orderBy=orderBy, fields=fields, maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
-    for f_file in feed:
-      a_file = {u'Owner': user}
+    i += 1
+    if fileIdSelection == None:
+      user, drive = buildDriveGAPIObject(user)
+      if not drive:
+        continue
       if filepath:
-        _, paths = getFilePaths(drive, f_file, filePathInfo)
-        jcount = len(paths)
-        a_file[u'paths'] = jcount
-        j = 0
-        for path in paths:
-          key = u'path.{0}'.format(j)
-          if key not in titles:
-            titles.append(key)
-          a_file[key] = path
-          j += 1
-      for attrib in f_file:
-        if attrib in skip_objects:
-          continue
-        if not isinstance(f_file[attrib], dict):
-          if isinstance(f_file[attrib], list):
-            if f_file[attrib]:
-              if isinstance(f_file[attrib][0], (str, unicode, int, bool)):
-                if attrib not in titles:
-                  titles.append(attrib)
-                a_file[attrib] = u' '.join(f_file[attrib])
-              else:
-                for j, l_attrib in enumerate(f_file[attrib]):
-                  for list_attrib in l_attrib:
-                    if list_attrib in [u'kind', u'etag', u'selfLink']:
-                      continue
-                    x_attrib = u'{0}.{1}.{2}'.format(attrib, j, list_attrib)
-                    if x_attrib not in titles:
-                      titles.append(x_attrib)
-                    a_file[x_attrib] = l_attrib[list_attrib]
-          elif isinstance(f_file[attrib], (str, unicode, int, bool)):
-            if attrib not in titles:
-              titles.append(attrib)
-            a_file[attrib] = f_file[attrib]
-          else:
-            sys.stderr.write(u'File ID: {0}, Attribute: {1}, Unknown type: {2}\n'.format(f_file[u'id'], attrib, type(f_file[attrib])))
-        elif attrib == u'labels':
-          for dict_attrib in f_file[attrib]:
-            if dict_attrib not in titles:
-              titles.append(dict_attrib)
-            a_file[dict_attrib] = f_file[attrib][dict_attrib]
-        else:
-          for dict_attrib in f_file[attrib]:
-            if dict_attrib in [u'kind', u'etag']:
-              continue
-            x_attrib = u'{0}.{1}'.format(attrib, dict_attrib)
-            if x_attrib not in titles:
-              titles.append(x_attrib)
-            a_file[x_attrib] = f_file[attrib][dict_attrib]
-      csvRows.append(a_file)
+        filePathInfo = initFilePathInfo()
+      try:
+        sys.stderr.write(u'Getting files for %s...\n' % user)
+        page_message = u' got %%%%total_items%%%% files for %s...\n' % user
+        feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST, page_message=page_message,
+                             throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_QUERY, GAPI_FILE_NOT_FOUND],
+                             q=query, orderBy=orderBy, fields=fields, maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+        for f_file in feed:
+          _printFileList(f_file)
+      except GAPI_invalidQuery:
+        sys.stderr.write(u'User: {0}, Show Failed: Query ({1}) Invalid{2}'.format(user, query, currentCountNL(i, count)))
+        break
+      except GAPI_fileNotFound:
+        sys.stderr.write(u' got 0 files for %s...\n' % user)
+      except (GAPI_serviceNotAvailable, GAPI_authError):
+        entityServiceNotApplicableWarning(u'User', user, i, count)
+    else:
+      showdepth = True
+      addTitlesToCSVfile([u'depth',], titles)
+      user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
+      if not drive:
+        continue
+      if jcount == 0:
+        continue
+      if filepath:
+        filePathInfo = initFilePathInfo()
+      j = 0
+      for fileId in fileIdSelection[u'fileIds']:
+        j += 1
+        try:
+          f_file = callGAPI(drive.files(), u'get',
+                            throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
+                            fileId=fileId, fields=infoFields)
+          _recursivePrintFileList(f_file, 0)
+        except GAPI_fileNotFound:
+          sys.stderr.write(u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCountNL(j, jcount)))
+        except (GAPI_serviceNotAvailable, GAPI_authError):
+          entityServiceNotApplicableWarning(u'User', user, i, count)
+          break
   if allfields:
-    sortCSVTitles([u'Owner', u'id', u'title'], titles)
+    sortCSVTitles([u'Owner', u'id', DRIVE_FILE_NAME], titles)
   writeCSVfile(csvRows, titles, u'%s %s Drive Files' % (CL_argv[1], CL_argv[2]), todrive)
 
 def showDriveFilePath(users):
@@ -9319,10 +9406,10 @@ def showDriveFilePath(users):
       try:
         result = callGAPI(drive.files(), u'get',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                          fileId=fileId, fields=u'{0},mimeType,parents(id)'.format(u'title'))
+                          fileId=fileId, fields=u'{0},mimeType,parents(id)'.format(DRIVE_FILE_NAME))
         entityType, paths = getFilePaths(drive, result, filePathInfo)
         kcount = len(paths)
-        print u'{0}: {1}, {2}{3}'.format(entityType, u'{0} ({1})'.format(result[u'title'], fileId), u'Show {0} Drive Paths'.format(kcount), currentCount(j, jcount))
+        print u'{0}: {1}, {2}{3}'.format(entityType, u'{0} ({1})'.format(result[DRIVE_FILE_NAME], fileId), u'Show {0} Drive Paths'.format(kcount), currentCount(j, jcount))
         k = 0
         for path in paths:
           k += 1
@@ -9338,26 +9425,28 @@ def showDriveFileTree(users):
     for f_file in feed:
       for parent in f_file[u'parents']:
         if folderId == parent[u'id']:
-          print u' ' * indent, convertUTF8(f_file[u'title'])
+          print u' ' * indent, convertUTF8(f_file[DRIVE_FILE_NAME])
           if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
             _printDriveFolderContents(feed, f_file[u'id'], indent+1)
           break
 
-  fileIdSelection = getDriveFileEntity(default=[u'root'], ignore=[u'orderby',])
+  fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
   orderByList = []
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'orderby':
+    if myarg == u'select':
+      fileIdSelection = getDriveFileEntity()
+    elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
-      sortOrder = getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True)
-      if sortOrder != u'DESCENDING':
+      if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
         orderByList.append(fieldName)
       else:
         orderByList.append(u'{0} desc'.format(fieldName))
     else:
       unknownArgumentExit()
-  if not fileIdSelection[u'fileIds'] and not fileIdSelection[u'query']:
+  if not fileIdSelection:
+    fileIdSelection = initDriveFileEntity()
     cleanFileIDsList(fileIdSelection, [u'root',])
   if orderByList:
     orderBy = u','.join(orderByList)
@@ -9376,17 +9465,18 @@ def showDriveFileTree(users):
     try:
       sys.stderr.write(u'Getting all files for %s...\n' % user)
       page_message = u' got %%%%total_items%%%% files for %s...\n' % user
-      feed = callGAPIpages(drive.files(), u'list', u'items', page_message=page_message,
+      feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
+                           page_message=page_message,
                            throw_reasons=GAPI_DRIVE_THROW_REASONS,
-                           orderBy=orderBy, fields=u'items(id,title,parents(id),mimeType),nextPageToken', maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+                           orderBy=orderBy, fields=u'nextPageToken,{0}(id,{1},mimeType,parents(id))'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
       j = 0
       for fileId in fileIdSelection[u'fileIds']:
         j += 1
         try:
           result = callGAPI(drive.files(), u'get',
                             throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                            fileId=fileId, fields=u'title')
-          print u'{0}: {1}{2}'.format(u'Drive File/Folder', result[u'title'], currentCount(j, jcount))
+                            fileId=fileId, fields=DRIVE_FILE_NAME)
+          print u'{0}: {1}{2}'.format(u'Drive File/Folder', result[DRIVE_FILE_NAME], currentCount(j, jcount))
           _printDriveFolderContents(feed, fileId, 1)
         except GAPI_fileNotFound:
           print u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCount(j, jcount))
@@ -9402,7 +9492,7 @@ def addDriveFile(users):
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'drivefilename':
-      body[u'title'] = getString(OB_DRIVE_FOLDER_NAME)
+      body[DRIVE_FILE_NAME] = getString(OB_DRIVE_FOLDER_NAME)
     else:
       getDriveFileAttribute(body, parameters, myarg, False)
   for user in users:
@@ -9419,7 +9509,7 @@ def addDriveFile(users):
         media_body = googleapiclient.http.MediaFileUpload(parameters[DFA_LOCALFILEPATH], mimetype=parameters[DFA_LOCALMIMETYPE], resumable=True)
       except IOError as e:
         systemErrorExit(FILE_ERROR_RC, e)
-    result = callGAPI(drive.files(), u'insert',
+    result = callGAPI(drive.files(), DRIVE_CREATE_FILE,
                       convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE], media_body=media_body, body=body, fields=u'id')
     if parameters[DFA_LOCALFILENAME]:
       print u'Successfully uploaded %s to Drive file ID %s' % (parameters[DFA_LOCALFILENAME], result[u'id'])
@@ -9436,7 +9526,7 @@ def doUpdateDriveFile(users):
     if myarg == u'copy':
       operation = u'copy'
     elif myarg == u'newfilename':
-      body[u'title'] = getString(OB_DRIVE_FILE_NAME)
+      body[DRIVE_FILE_NAME] = getString(OB_DRIVE_FILE_NAME)
     else:
       getDriveFileAttribute(body, parameters, myarg, True)
   i = 0
@@ -9457,11 +9547,11 @@ def doUpdateDriveFile(users):
           systemErrorExit(FILE_ERROR_RC, e)
       for fileId in fileIdSelection[u'fileIds']:
         if media_body:
-          result = callGAPI(drive.files(), u'update',
+          result = callGAPI(drive.files(), DRIVE_UPDATE_FILE,
                             fileId=fileId, convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE], media_body=media_body, body=body, fields=u'id')
           print u'Successfully updated %s drive file with content from %s' % (result[u'id'], parameters[DFA_LOCALFILENAME])
         else:
-          result = callGAPI(drive.files(), u'patch',
+          result = callGAPI(drive.files(), DRIVE_PATCH_FILE,
                             fileId=fileId, convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE], body=body, fields=u'id')
           print u'Successfully updated drive file/folder ID %s' % (result[u'id'])
     else:
@@ -9569,9 +9659,10 @@ def getDriveFile(users):
       print u'No files to download for %s' % user
     for fileId in fileIdSelection[u'fileIds']:
       extension = None
-      result = callGAPI(drive.files(), u'get', fileId=fileId, fields=u'fileSize,title,mimeType,downloadUrl,exportLinks')
+      result = callGAPI(drive.files(), u'get',
+                        fileId=fileId, fields=u'{0},mimeType,fileSize,downloadUrl,exportLinks'.format(DRIVE_FILE_NAME))
       if result[u'mimeType'] == MIMETYPE_GA_FOLDER:
-        print convertUTF8(u'Skipping download of folder %s' % result[u'title'])
+        print convertUTF8(u'Skipping download of folder %s' % result[DRIVE_FILE_NAME])
         continue
       if u'fileSize' in result:
         my_line = u'Downloading: %%s of %s bytes' % formatFileSize(int(result[u'fileSize']))
@@ -9586,12 +9677,12 @@ def getDriveFile(users):
             extension = exportFormat[u'ext']
             break
         else:
-          print convertUTF8(u'Skipping download of file {0}, Format {1} not available'.format(result[u'title'], u','.join(exportFormatChoices)))
+          print convertUTF8(u'Skipping download of file {0}, Format {1} not available'.format(result[DRIVE_FILE_NAME], u','.join(exportFormatChoices)))
           continue
       else:
         print convertUTF8(u'Skipping download of file {0}, Format not downloadable')
         continue
-      file_title = result[u'title']
+      file_title = result[DRIVE_FILE_NAME]
       safe_file_title = u''.join(c for c in file_title if c in safe_filename_chars)
       filename = os.path.join(targetFolder, safe_file_title)
       y = 0
@@ -9639,23 +9730,24 @@ def transferDriveFiles(users):
     source_permissionid = source_about[u'permissionId']
     print u"Getting file list for source user: %s..." % user
     page_message = u'  got %%total_items%% files\n'
-    source_drive_files = callGAPIpages(source_drive.files(), u'list', u'items', page_message=page_message,
-                                       q=source_query, fields=u'items(id,parents,mimeType),nextPageToken')
+    source_drive_files = callGAPIpages(source_drive.files(), u'list', DRIVE_FILES_LIST, page_message=page_message,
+                                       q=source_query, fields=u'nextPageToken,{0}(id,parents,mimeType)'.format(DRIVE_FILES_LIST))
     all_source_file_ids = [source_drive_file[u'id'] for source_drive_file in source_drive_files]
     total_count = len(source_drive_files)
     print u"Getting folder list for target user: %s..." % target_user
     page_message = u'  got %%total_items%% folders\n'
-    target_folders = callGAPIpages(target_drive.files(), u'list', u'items', page_message=page_message,
-                                   q=target_query, fields=u'items(id,title),nextPageToken')
+    target_folders = callGAPIpages(target_drive.files(), u'list', DRIVE_FILES_LIST, page_message=page_message,
+                                   q=target_query, fields=u'nextPageToken,{0}(id,{1})'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME))
     got_top_folder = False
     all_target_folder_ids = []
     for target_folder in target_folders:
       all_target_folder_ids.append(target_folder[u'id'])
-      if (not got_top_folder) and target_folder[u'title'] == u'%s old files' % user:
+      if (not got_top_folder) and target_folder[DRIVE_FILE_NAME] == u'%s old files' % user:
         target_top_folder = target_folder[u'id']
         got_top_folder = True
     if not got_top_folder:
-      create_folder = callGAPI(target_drive.files(), u'insert', body={u'title': u'%s old files' % user, u'mimeType': u'application/vnd.google-apps.folder'}, fields=u'id')
+      create_folder = callGAPI(target_drive.files(), DRIVE_CREATE_FILE,
+                               body={DRIVE_FILE_NAME: u'%s old files' % user, u'mimeType': u'application/vnd.google-apps.folder'}, fields=u'id')
       target_top_folder = create_folder[u'id']
     transferred_files = []
     while True: # we loop thru, skipping files until all of their parents are done
@@ -9680,7 +9772,8 @@ def transferDriveFiles(users):
         counter += 1
         print u'Changing owner for file %s%s' % (drive_file[u'id'], currentCount(counter, total_count))
         body = {u'role': u'owner', u'type': u'user', u'value': target_user}
-        callGAPI(source_drive.permissions(), u'insert', soft_errors=True, fileId=file_id, sendNotificationEmails=False, body=body)
+        callGAPI(source_drive.permissions(), DRIVE_CREATE_PERMISSIONS,
+                 soft_errors=True, fileId=file_id, sendNotificationEmails=False, body=body)
         target_parents = []
         for parent in source_parents:
           try:
@@ -9690,7 +9783,7 @@ def transferDriveFiles(users):
               target_parents.append({u'id': parent[u'id']})
           except TypeError:
             pass
-        callGAPI(target_drive.files(), u'patch', soft_errors=True, retry_reasons=[u'notFound'], fileId=file_id, body={u'parents': target_parents})
+        callGAPI(target_drive.files(), DRIVE_PATCH_FILE, soft_errors=True, retry_reasons=[u'notFound'], fileId=file_id, body={u'parents': target_parents})
         if remove_source_user:
           callGAPI(target_drive.permissions(), u'delete', soft_errors=True, fileId=file_id, permissionId=source_permissionid)
       if not skipped_files:
@@ -9722,20 +9815,21 @@ def deleteEmptyDriveFolders(users):
     while deleted_empty:
       sys.stderr.write(u'Getting folders for %s...\n' % user)
       page_message = u' got %%%%total_items%%%% folders for %s...\n' % user
-      feed = callGAPIpages(drive.files(), u'list', u'items', page_message=page_message,
-                           q=query, fields=u'items(title,id),nextPageToken', maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+      feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
+                           page_message=page_message,
+                           q=query, fields=u'nextPageToken,{0}(id,{1})'.format(DRIVE_FILES_LIST, DRIVE_FILE_NAME), maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
       deleted_empty = False
       for folder in feed:
         children = callGAPI(drive.children(), u'list',
-                            folderId=folder[u'id'], fields=u'items(id)', maxResults=1)
-        if not u'items' in children or len(children[u'items']) == 0:
-          print convertUTF8(u' deleting empty folder %s...' % folder[u'title'])
+                            folderId=folder[u'id'], fields=u'{0}(id)'.format(DRIVE_FILES_LIST), maxResults=1)
+        if (not children) or (DRIVE_FILES_LIST not in children) or (len(children[DRIVE_FILES_LIST]) == 0):
+          print convertUTF8(u' deleting empty folder %s...' % folder[DRIVE_FILE_NAME])
           callGAPI(drive.files(), u'delete', fileId=folder[u'id'])
           deleted_empty = True
         else:
-          print convertUTF8(u' not deleting folder %s because it contains at least 1 item (%s)' % (folder[u'title'], children[u'items'][0][u'id']))
+          print convertUTF8(u' not deleting folder {0} because it contains at least 1 item ({1})'.format(folder[DRIVE_FILE_NAME], children[DRIVE_FILES_LIST][0][u'id']))
 
-def demptyDriveTrash(users):
+def emptyDriveTrash(users):
   checkForExtraneousArguments()
   for user in users:
     user, drive = buildDriveGAPIObject(user)
@@ -9744,9 +9838,9 @@ def demptyDriveTrash(users):
     print u'Emptying Drive trash for %s' % user
     callGAPI(drive.files(), u'emptyTrash')
 
-def printPermission(permission):
-  if u'name' in permission:
-    print convertUTF8(permission[u'name'])
+def _showPermission(permission):
+  if DRIVE_PERMISSIONS_NAME in permission:
+    print convertUTF8(permission[DRIVE_PERMISSIONS_NAME])
   elif u'id' in permission:
     if permission[u'id'] == u'anyone':
       print u'Anyone'
@@ -9755,7 +9849,7 @@ def printPermission(permission):
     else:
       print permission[u'id']
   for key in permission:
-    if key in [u'name', u'kind', u'etag', u'selfLink',]:
+    if key in [u'kind', u'etag', u'selfLink', DRIVE_PERMISSIONS_NAME]:
       continue
     print u'  %s: %s' % (key, permission[key])
 
@@ -9817,8 +9911,9 @@ def addDriveFileACL(users):
     for fileId in fileIdSelection[u'fileIds']:
       j += 1
       print u'Adding permission for %s to file %s%s' % (permissionId, fileId, currentCount(j, jcount))
-      result = callGAPI(drive.permissions(), u'insert', fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=body)
-      printPermission(result)
+      result = callGAPI(drive.permissions(), DRIVE_CREATE_PERMISSIONS,
+                        fileId=fileId, sendNotificationEmails=sendNotificationEmails, emailMessage=emailMessage, body=body)
+      _showPermission(result)
 
 def updateDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
@@ -9860,9 +9955,9 @@ def updateDriveFileACL(users):
       continue
     for fileId in fileIdSelection[u'fileIds']:
       print u'Updating permission for %s to file %s' % (permissionId, fileId)
-      result = callGAPI(drive.permissions(), u'patch',
+      result = callGAPI(drive.permissions(), DRIVE_PATCH_PERMISSIONS,
                         fileId=fileId, permissionId=permissionId, removeExpiration=removeExpiration, transferOwnership=transferOwnership, body=body)
-      printPermission(result)
+      _showPermission(result)
 
 def deleteDriveFileACL(users):
   fileIdSelection = getDriveFileEntity()
@@ -9913,16 +10008,16 @@ def showDriveFileACL(users):
         if showTitles:
           result = callGAPI(drive.files(), u'get',
                             throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                            fileId=fileId, fields=u'title')
-          if result and u'title' in result:
+                            fileId=fileId, fields=DRIVE_FILE_NAME)
+          if result and DRIVE_FILE_NAME in result:
             entityType = u'Drive File/Folder'
-            fileName = result[u'title']+u'('+fileId+u')'
+            fileName = result[DRIVE_FILE_NAME]+u'('+fileId+u')'
         result = callGAPI(drive.permissions(), u'list',
                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                           fileId=fileId)
         print u'{0}: {1}, {2}{3}'.format(entityType, fileName, u'Permittees', currentCount(j, jcount))
-        for permission in result[u'items']:
-          printPermission(permission)
+        for permission in result[DRIVE_PERMISSIONS_LIST]:
+          _showPermission(permission)
       except GAPI_fileNotFound:
         print u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, entityType, fileName, currentCount(j, jcount))
       except (GAPI_serviceNotAvailable, GAPI_authError):
@@ -10860,7 +10955,7 @@ def addDelegate(users, checkForTo):
           break
         # Guess it was just a normal backoff error then?
         if n == retries:
-          sys.stderr.write(u' - giving up.')
+          sys.stderr.write(u' - giving up.\n')
           sys.exit(e.error_code)
         wait_on_fail = (2 ** n) if (2 ** n) < 60 else 60
         randomness = float(random.randint(1, 1000)) / 1000
@@ -12456,7 +12551,7 @@ def ProcessGAMCommand(args):
     elif command == u'empty':
       emptyWhat = getArgument()
       if emptyWhat == u'drivetrash':
-        demptyDriveTrash(users)
+        emptyDriveTrash(users)
       else:
         unknownArgumentExit()
     elif command == u'info':

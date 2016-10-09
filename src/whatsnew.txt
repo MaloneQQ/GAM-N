@@ -10,6 +10,26 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+GAM 3.76.00
+
+Note!!! Syntax change.
+Changed arguments to gam show filetree to allow selection of starting folder and specification of output ordering.
+    gam <UserTypeEntity> show filetree [select <DriveFileEntity>] [orderby <DriveOrderByFieldName> [ascending|descending]]*
+If select <DriveFileEntity> is omitted, the filetree output starts with the root folder.
+
+Added select argument to print filelist to allow selection of a starting folder for the file list rather than the root folder.
+Added anyowner argument to allowing listing of all files in users' drive rather than just those files owned by user.
+    gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriveFile>] [fullquery <QueryDriveFile>])|([select <DriveFileEntity>] [depth <Number>])
+        [filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
+If none of query, fullquery and select are specified, all of the users' files and folders starting at the root folder are listed.
+If query or fullquery is specified, all of the users' files and folders matching the query are listed.
+If select is specified, each file or folder selected by <DriveFileEntity> is listed.
+The argument depth controls whether files or folders within a selected folder are listed when the select argument is specified.
+If depth 0 (the default), no files or folders within a selected folder are listed.
+If depth is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
+If depth equals -1, all files and folders below the selected folder are listed.
+When anyowner or fullquery are specified, the Owner column should be interpreted as the User column as some files shown may not owned by the user.
+
 GAM 3.75.02
 
 Update 3.75.01 was too complicated; if a drive file has no parents, it will have no paths; there is no need for "orphaned".
