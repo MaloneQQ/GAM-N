@@ -627,7 +627,6 @@ gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])
 	[maxresults <Number>] [delimiter <String>]
 	[members] [owners] [managers] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
 
-
 gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]
 	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
 

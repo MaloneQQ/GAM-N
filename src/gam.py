@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.76.00'
+__version__ = u'3.76.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -2504,7 +2504,7 @@ def callGAPIpages(service, function, items,
                   throw_reasons=[], retry_reasons=[],
                   **kwargs):
   pageToken = None
-  allResults = []
+  allResults = collections.deque()
   totalItems = 0
   while True:
     results = callGAPI(service, function, throw_reasons=throw_reasons, retry_reasons=retry_reasons, pageToken=pageToken, **kwargs)
@@ -3779,8 +3779,8 @@ def showReport():
     while True:
       try:
         page_message = u'Got %%num_items%% users\n'
-        usage = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports', page_message=page_message, throw_reasons=[GAPI_INVALID],
-                              date=try_date, userKey=userKey, customerId=customerId, filters=filters, parameters=parameters)
+        feed = callGAPIpages(rep.userUsageReport(), u'get', u'usageReports', page_message=page_message, throw_reasons=[GAPI_INVALID],
+                             date=try_date, userKey=userKey, customerId=customerId, filters=filters, parameters=parameters)
         break
       except GAPI_invalid as e:
         error = json.loads(e.content)
@@ -3791,7 +3791,8 @@ def showReport():
       try_date = _adjustDate(message)
     titles = [u'email', u'date']
     csvRows = []
-    for user_report in usage:
+    while feed:
+      user_report = feed.popleft()
       row = {u'email': user_report[u'entity'][u'userEmail'], u'date': try_date}
       try:
         for report_item in user_report[u'parameters']:
@@ -3844,13 +3845,14 @@ def showReport():
     writeCSVfile(csvRows, titles, u'Customer Report - %s' % try_date, todrive=to_drive)
   else:
     page_message = u'Got %%num_items%% items\n'
-    activities = callGAPIpages(rep.activities(), u'list', u'items', page_message=page_message, applicationName=report,
-                               userKey=userKey, customerId=customerId, actorIpAddress=actorIpAddress,
-                               startTime=startTime, endTime=endTime, eventName=eventName, filters=filters)
-    if len(activities) > 0:
+    feed = callGAPIpages(rep.activities(), u'list', u'items', page_message=page_message, applicationName=report,
+                         userKey=userKey, customerId=customerId, actorIpAddress=actorIpAddress,
+                         startTime=startTime, endTime=endTime, eventName=eventName, filters=filters)
+    if feed:
       titles = [u'name']
       csvRows = []
-      for activity in activities:
+      while feed:
+        activity = feed.popleft()
         events = activity[u'events']
         del activity[u'events']
         activity_row = flattenJSON(activity)
@@ -4139,9 +4141,10 @@ def doPrintAdmins():
       todrive = True
     else:
       unknownArgumentExit()
-  admins = callGAPIpages(cd.roleAssignments(), u'list', u'items',
-                         customer=GC_Values[GC_CUSTOMER_ID], userKey=userKey, roleId=roleId, fields=fields)
-  for admin in admins:
+  feed = callGAPIpages(cd.roleAssignments(), u'list', u'items',
+                       customer=GC_Values[GC_CUSTOMER_ID], userKey=userKey, roleId=roleId, fields=fields)
+  while feed:
+    admin = feed.popleft()
     admin_attrib = {}
     for key, value in admin.items():
       if key == u'assignedTo':
@@ -5416,13 +5419,13 @@ def doPrintCrosDevices():
     fields = None
   sys.stderr.write(u'Retrieving All Chrome OS Devices for organization (may take some time for large accounts)...\n')
   page_message = u'Got %%num_items%% Chrome devices...\n'
-  all_cros = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices', page_message=page_message,
-                           query=query, customerId=GC_Values[GC_CUSTOMER_ID], projection=projection,
-                           orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
-  if all_cros:
+  feed = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices', page_message=page_message,
+                       query=query, customerId=GC_Values[GC_CUSTOMER_ID], projection=projection,
+                       orderBy=orderBy, sortOrder=sortOrder, fields=fields, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
+  if feed:
     if (not noLists) and (not selectActiveTimeRanges) and (not selectRecentUsers):
-      for cros in all_cros:
-        addRowTitlesToCSVfile(flattenJSON(cros, listLimit=listLimit), csvRows, titles)
+      while feed:
+        addRowTitlesToCSVfile(flattenJSON(feed.popleft(), listLimit=listLimit), csvRows, titles)
     else:
       if not noLists:
         if selectActiveTimeRanges:
@@ -5431,7 +5434,8 @@ def doPrintCrosDevices():
         if selectRecentUsers:
           for attrib in [u'recentUsers.email', u'recentUsers.type']:
             titles.append(attrib)
-      for cros in all_cros:
+      while feed:
+        cros = feed.popleft()
         row = {}
         for attrib in cros:
           if attrib in [u'kind', u'etag', u'recentUsers', u'activeTimeRanges']:
@@ -5552,10 +5556,11 @@ def doPrintMobileDevices():
       unknownArgumentExit()
   sys.stderr.write(u'Retrieving All Mobile Devices for organization (may take some time for large accounts)...\n')
   page_message = u'Got %%num_items%% mobile devices...\n'
-  all_mobile = callGAPIpages(cd.mobiledevices(), u'list', u'mobiledevices', page_message=page_message,
-                             customerId=GC_Values[GC_CUSTOMER_ID], query=query, projection=projection,
-                             orderBy=orderBy, sortOrder=sortOrder, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
-  for mobile in all_mobile:
+  feed = callGAPIpages(cd.mobiledevices(), u'list', u'mobiledevices', page_message=page_message,
+                       customerId=GC_Values[GC_CUSTOMER_ID], query=query, projection=projection,
+                       orderBy=orderBy, sortOrder=sortOrder, maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
+  while feed:
+    mobile = feed.popleft()
     mobiledevice = {}
     for attrib in mobile:
       if attrib in [u'kind', u'etag', u'applications']:
@@ -6207,7 +6212,7 @@ def doPrintGroupMembers():
 def doPrintLicenses(return_list=False, skus=None):
   lic = buildGAPIObject(GAPI_LICENSING_API)
   products = [u'Google-Apps', u'Google-Vault']
-  licenses = []
+  feed = collections.deque()
   titles = [u'userId', u'productId', u'skuId']
   csvRows = []
   todrive = False
@@ -6228,19 +6233,20 @@ def doPrintLicenses(return_list=False, skus=None):
     for skuId in skus:
       page_message = u'Got %%%%total_items%%%% Licenses for %s...\n' % skuId
       try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items', page_message=page_message, throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                  customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[skuId], skuId=skuId, fields=u'items(productId,skuId,userId),nextPageToken')
+        feed += callGAPIpages(lic.licenseAssignments(), u'listForProductAndSku', u'items', page_message=page_message, throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                              customerId=GC_Values[GC_DOMAIN], productId=GOOGLE_SKUS[skuId], skuId=skuId, fields=u'items(productId,skuId,userId),nextPageToken')
       except (GAPI_invalid, GAPI_forbidden):
         pass
   else:
     for productId in products:
       page_message = u'Got %%%%total_items%%%% Licenses for %s...\n' % productId
       try:
-        licenses += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items', page_message=page_message, throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
-                                  customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'items(productId,skuId,userId),nextPageToken')
+        feed += callGAPIpages(lic.licenseAssignments(), u'listForProduct', u'items', page_message=page_message, throw_reasons=[GAPI_INVALID, GAPI_FORBIDDEN],
+                              customerId=GC_Values[GC_DOMAIN], productId=productId, fields=u'items(productId,skuId,userId),nextPageToken')
       except (GAPI_invalid, GAPI_forbidden):
         pass
-  for u_license in licenses:
+  while feed:
+    u_license = feed.popleft()
     a_license = {}
     for title in u_license:
       if title in [u'kind', u'etags', u'selfLink']:
@@ -7341,11 +7347,12 @@ def doPrintUsers():
     fields = None
   sys.stderr.write(u"Getting all users in Google Apps account (may take some time on a large account)...\n")
   page_message = u'Got %%total_items%% users: %%first_item%% - %%last_item%%\n'
-  all_users = callGAPIpages(cd.users(), u'list', u'users', page_message=page_message,
-                            message_attribute=u'primaryEmail', customer=customer, domain=domain, fields=fields,
-                            showDeleted=deleted_only, orderBy=orderBy, sortOrder=sortOrder, viewType=viewType,
-                            query=query, projection=projection, customFieldMask=customFieldMask, maxResults=GC_Values[GC_USER_MAX_RESULTS])
-  for user in all_users:
+  feed = callGAPIpages(cd.users(), u'list', u'users', page_message=page_message,
+                       message_attribute=u'primaryEmail', customer=customer, domain=domain, fields=fields,
+                       showDeleted=deleted_only, orderBy=orderBy, sortOrder=sortOrder, viewType=viewType,
+                       query=query, projection=projection, customFieldMask=customFieldMask, maxResults=GC_Values[GC_USER_MAX_RESULTS])
+  while feed:
+    user = feed.popleft()
     if email_parts and (u'primaryEmail' in user):
       userEmail = user[u'primaryEmail']
       if userEmail.find(u'@') != -1:
@@ -8898,8 +8905,8 @@ def printDriveActivity(users):
                          page_message=page_message, source=u'drive.google.com', userId=u'me',
                          drive_ancestorId=drive_ancestorId, groupingStrategy=u'none',
                          drive_fileId=drive_fileId, pageSize=GC_Values[GC_ACTIVITY_MAX_RESULTS])
-    for item in feed:
-      addRowTitlesToCSVfile(flattenJSON(item[u'combinedEvent']), csvRows, titles)
+    while feed:
+      addRowTitlesToCSVfile(flattenJSON(feed.popleft()[u'combinedEvent']), csvRows, titles)
   writeCSVfile(csvRows, titles, u'Drive Activity', todrive)
 
 def printDriveSettings(users):
@@ -9200,7 +9207,7 @@ def printDriveFileList(users):
       skip_objects.extend([field for field in FILEPATH_FIELDS if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
 
-  def _printFileList(f_file, depth=None):
+  def _printFileInfo(f_file, depth=None):
     a_file = {u'Owner': user}
     if showdepth:
       a_file[u'depth'] = depth
@@ -9257,7 +9264,7 @@ def printDriveFileList(users):
     csvRows.append(a_file)
 
   def _recursivePrintFileList(f_file, depth):
-    _printFileList(f_file, depth)
+    _printFileInfo(f_file, depth)
     if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
       children = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
                                soft_errors=True,
@@ -9353,8 +9360,8 @@ def printDriveFileList(users):
         feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST, page_message=page_message,
                              throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_QUERY, GAPI_FILE_NOT_FOUND],
                              q=query, orderBy=orderBy, fields=fields, maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
-        for f_file in feed:
-          _printFileList(f_file)
+        while feed:
+          _printFileInfo(feed.popleft())
       except GAPI_invalidQuery:
         sys.stderr.write(u'User: {0}, Show Failed: Query ({1}) Invalid{2}'.format(user, query, currentCountNL(i, count)))
         break
