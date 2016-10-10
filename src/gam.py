@@ -324,6 +324,8 @@ ROLE_MANAGER_MEMBER_OWNER = u','.join([ROLE_MANAGER, ROLE_MEMBER, ROLE_OWNER])
 ROLE_MEMBER_OWNER = u','.join([ROLE_MEMBER, ROLE_OWNER])
 PROJECTION_CHOICES_MAP = {u'basic': u'BASIC', u'full': u'FULL',}
 SORTORDER_CHOICES_MAP = {u'ascending': u'ASCENDING', u'descending': u'DESCENDING',}
+ME_IN_OWNERS = u"'me' in owners"
+ME_IN_OWNERS_AND = ME_IN_OWNERS+u" and "
 
 # Valid language codes
 LANGUAGE_CODES_MAP = {
@@ -8744,7 +8746,7 @@ def cleanFileIDsList(fileIdSelection, fileIds):
 def initDriveFileEntity():
   return {u'fileIds': [], u'query': None, u'root': []}
 
-def getDriveFileEntity():
+def getDriveFileEntity(anyowner=False):
   fileIdSelection = initDriveFileEntity()
   myarg = getString(OB_DRIVE_FILE_ID, checkBlank=True)
   mycmd = myarg.lower()
@@ -8757,9 +8759,9 @@ def getDriveFileEntity():
   elif mycmd[:6] == u'query:':
     fileIdSelection[u'query'] = myarg[6:]
   elif mycmd == u'drivefilename':
-    fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
+    fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
   elif mycmd[:14] == u'drivefilename:':
-    fileIdSelection[u'query'] = u"'me' in owners and {0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
+    fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
   elif mycmd == u'root':
     cleanFileIDsList(fileIdSelection, [mycmd,])
   else:
@@ -9193,10 +9195,10 @@ FILELIST_FIELDS = [u'id', u'mimeType']
 
 def printDriveFileList(users):
   def _stripMeInOwners(query):
-    if query == u"'me' in owners":
+    if query == ME_IN_OWNERS:
       return None
-    if query.startswith(u"'me' in owners and "):
-      return query[19:]
+    if query.startswith(ME_IN_OWNERS_AND):
+      return query[len(ME_IN_OWNERS_AND):]
     return query
 
   def _setSelectionFields():
@@ -9281,7 +9283,7 @@ def printDriveFileList(users):
   skip_objects = []
   titles = [u'Owner',]
   csvRows = []
-  query = u"'me' in owners"
+  query = ME_IN_OWNERS
   childrenQuery = query+u" and '{0}' in parents"
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
@@ -9449,7 +9451,7 @@ def showDriveFileTree(users):
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'select':
-      fileIdSelection = getDriveFileEntity()
+      fileIdSelection = getDriveFileEntity(True)
     elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
       if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
@@ -9721,8 +9723,8 @@ def transferDriveFiles(users):
       remove_source_user = False
     else:
       unknownArgumentExit()
-  source_query = u"'me' in owners and trashed = false"
-  target_query = u"'me' in owners and mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
+  source_query = ME_IN_OWNERS_AND+u"trashed = false"
+  target_query = ME_IN_OWNERS_AND+u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
   target_user, target_drive = buildDriveGAPIObject(target_user)
   if not target_drive:
     return
@@ -9816,7 +9818,7 @@ def validateUserGetPermissionId(user):
 
 def deleteEmptyDriveFolders(users):
   checkForExtraneousArguments()
-  query = u"'me' in owners and mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
+  query = ME_IN_OWNERS_AND+u"mimeType = '{0}'".format(MIMETYPE_GA_FOLDER)
   i = 0
   count = len(users)
   for user in users:
