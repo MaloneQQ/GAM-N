@@ -12,7 +12,7 @@ You'll notice that the API Scopes - Service Account list has additional entries,
 
 GAM 3.76.02
 
-Eliminated depth column in gam print filelist select.
+Eliminated depth column in gam print filelist select. Changed depth to default to -1.
 
 GAM 3.76.01
 
@@ -33,9 +33,9 @@ If none of query, fullquery and select are specified, all of the users' files an
 If query or fullquery is specified, all of the users' files and folders matching the query are listed.
 If select is specified, each file or folder selected by <DriveFileEntity> is listed.
 The argument depth controls whether files or folders within a selected folder are listed when the select argument is specified.
-If depth 0 (the default), no files or folders within a selected folder are listed.
+If depth equals -1 (the default), all files and folders below the selected folder are listed.
+If depth is 0, no files or folders within a selected folder are listed.
 If depth is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
-If depth equals -1, all files and folders below the selected folder are listed.
 When anyowner or fullquery are specified, the Owner column should be interpreted as the User column as some files shown may not owned by the user.
 
 GAM 3.75.02
