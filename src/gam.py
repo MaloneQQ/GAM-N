@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.76.02'
+__version__ = u'3.76.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -8768,10 +8768,11 @@ def getDriveFileEntity(anyowner=False):
     cleanFileIDsList(fileIdSelection, [myarg,])
   return fileIdSelection
 
-def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters):
-  user, drive = buildDriveGAPIObject(user)
+def validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, drive=None):
   if not drive:
-    return (user, None, 0)
+    user, drive = buildDriveGAPIObject(user)
+    if not drive:
+      return (user, None, 0)
   if parameters[DFA_PARENTQUERY]:
     more_parents = doDriveSearch(drive, query=parameters[DFA_PARENTQUERY])
     if more_parents == None:
@@ -9065,8 +9066,8 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   }
 
 FILEINFO_FIELDS_TITLES = [DRIVE_FILE_NAME, u'mimeType']
-FILEPATH_TITLES = [u'mimeType', u'parents', DRIVE_FILE_NAME]
-FILEPATH_FIELDS = [u'mimeType', u'parents(id)', DRIVE_FILE_NAME]
+FILEPATH_TITLES = [DRIVE_FILE_NAME, u'mimeType', u'parents']
+FILEPATH_FIELDS = [DRIVE_FILE_NAME, u'mimeType', u'parents(id)']
 
 def showDriveFileInfo(users):
   filepath = False
@@ -9097,7 +9098,7 @@ def showDriveFileInfo(users):
       fields += u',labels({0})'.format(u','.join(set(labelsList)))
   else:
     fields = u'*'
-    skip_objects = [u'kind', u'etag']
+    skip_objects.extend([u'kind', u'etag'])
   i = 0
   count = len(users)
   for user in users:
@@ -9192,7 +9193,8 @@ DRIVEFILE_ORDERBY_CHOICES_MAP = {
   u'viewedbymetime': u'lastViewedByMeDate',
   }
 
-FILELIST_FIELDS_TITLES = [u'id', u'mimeType']
+FILELIST_TITLES = [u'id', u'mimeType', u'parents']
+FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 
 def printDriveFileList(users):
   def _stripMeInOwners(query):
@@ -9203,14 +9205,17 @@ def printDriveFileList(users):
     return query
 
   def _setSelectionFields():
-    if fileIdSelection != None and maxdepth != 0:
-      skip_objects.extend([field for field in FILELIST_FIELDS_TITLES if field not in fieldsList])
-      fieldsList.extend(FILELIST_FIELDS_TITLES)
+    if fileIdSelection:
+      skip_objects.extend([field for field in FILELIST_TITLES if field not in fieldsList])
+      fieldsList.extend(FILELIST_FIELDS)
     if filepath:
       skip_objects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
       fieldsList.extend(FILEPATH_FIELDS)
 
   def _printFileInfo(f_file):
+    if f_file.get(u'printed'):
+      return
+    f_file[u'printed'] = True
     a_file = {u'Owner': user}
     if filepath:
       _, paths = getFilePaths(drive, f_file, filePathInfo)
@@ -9264,14 +9269,14 @@ def printDriveFileList(users):
             titles.append(x_attrib)
     csvRows.append(a_file)
 
-  def _recursivePrintFileList(f_file, depth):
-    _printFileInfo(f_file)
-    if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
-      children = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
-                               soft_errors=True,
-                               q=childrenQuery.format(f_file[u'id']), orderBy=orderBy, fields=fields)
-      for child in children:
-        _recursivePrintFileList(child, depth+1)
+  def _printDriveFolderContents(folderId, depth):
+    for f_file in feed:
+      for parent in f_file.get(u'parents', []):
+        if folderId == parent[u'id']:
+          _printFileInfo(f_file)
+          if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
+            _printDriveFolderContents(f_file[u'id'], depth+1)
+          break
 
   allfields = anyowner = filepath = todrive = False
   maxdepth = -1
@@ -9279,11 +9284,10 @@ def printDriveFileList(users):
   fieldsTitles = {}
   labelsList = []
   orderByList = []
-  skip_objects = []
+  skip_objects = [u'printed',]
   titles = [u'Owner',]
   csvRows = []
   query = ME_IN_OWNERS
-  childrenQuery = query+u" and '{0}' in parents"
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
   while CL_argvI < CL_argvLen:
@@ -9304,7 +9308,6 @@ def printDriveFileList(users):
       query = getString(OB_QUERY)
     elif myarg == u'anyowner':
       anyowner = True
-      childrenQuery = u"'{0}' in parents"
     elif myarg == u'select':
       fileIdSelection = getDriveFileEntity()
     elif myarg == u'depth':
@@ -9320,23 +9323,22 @@ def printDriveFileList(users):
       unknownArgumentExit()
   if fieldsList or labelsList:
     _setSelectionFields()
-    infoFields = ''
+    fields = u'nextPageToken,{0}('.format(DRIVE_FILES_LIST)
     if fieldsList:
-      infoFields += u','.join(set(fieldsList))
+      fields += u','.join(set(fieldsList))
       if labelsList:
-        infoFields += u','
+        fields += u','
     if labelsList:
-      infoFields += u'labels({0})'.format(u','.join(set(labelsList)))
-    fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, infoFields)
+      fields += u'labels({0})'.format(u','.join(set(labelsList)))
+    fields += u')'
   elif not allfields:
     for field in [u'name', DRIVE_FILE_VIEW_LINK]:
       addFieldToCSVfile(field, {field: [DRIVEFILE_FIELDS_CHOICES_MAP[field.lower()]]}, fieldsList, fieldsTitles, titles)
     _setSelectionFields()
-    infoFields = u','.join(set(fieldsList))
-    fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, infoFields)
+    fields = u'nextPageToken,{0}({1})'.format(DRIVE_FILES_LIST, u','.join(set(fieldsList)))
   else:
-    infoFields = fields = u'*'
-    skip_objects = [u'kind', u'etag']
+    fields = u'*'
+    skip_objects.extend([u'kind', u'etag'])
   if orderByList:
     orderBy = u','.join(orderByList)
   else:
@@ -9347,52 +9349,36 @@ def printDriveFileList(users):
   count = len(users)
   for user in users:
     i += 1
-    if fileIdSelection == None:
-      if anyowner:
-        query = _stripMeInOwners(query)
-      user, drive = buildDriveGAPIObject(user)
-      if not drive:
-        continue
-      if filepath:
-        filePathInfo = initFilePathInfo()
-      try:
-        sys.stderr.write(u'Getting files for %s...\n' % user)
-        page_message = u' got %%%%total_items%%%% files for %s...\n' % user
-        feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST, page_message=page_message,
-                             throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_QUERY, GAPI_FILE_NOT_FOUND],
-                             q=query, orderBy=orderBy, fields=fields, maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+    if anyowner:
+      query = _stripMeInOwners(query)
+    user, drive = buildDriveGAPIObject(user)
+    if not drive:
+      continue
+    if filepath:
+      filePathInfo = initFilePathInfo()
+    try:
+      sys.stderr.write(u'Getting files for %s...\n' % user)
+      page_message = u' got %%%%total_items%%%% files for %s...\n' % user
+      feed = callGAPIpages(drive.files(), u'list', DRIVE_FILES_LIST,
+                           page_message=page_message,
+                           throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_INVALID_QUERY, GAPI_FILE_NOT_FOUND],
+                           q=query, orderBy=orderBy, fields=fields, maxResults=GC_Values[GC_DRIVE_MAX_RESULTS])
+      if fileIdSelection == None:
         while feed:
           _printFileInfo(feed.popleft())
-      except GAPI_invalidQuery:
-        sys.stderr.write(u'User: {0}, Show Failed: Query ({1}) Invalid{2}'.format(user, query, currentCountNL(i, count)))
-        break
-      except GAPI_fileNotFound:
-        sys.stderr.write(u' got 0 files for %s...\n' % user)
-      except (GAPI_serviceNotAvailable, GAPI_authError):
-        entityServiceNotApplicableWarning(u'User', user, i, count)
-    else:
-      if anyowner:
-        fileIdSelection[u'query'] = _stripMeInOwners(fileIdSelection[u'query'])
-      user, drive, jcount = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters)
-      if not drive:
-        continue
-      if jcount == 0:
-        continue
-      if filepath:
-        filePathInfo = initFilePathInfo()
-      j = 0
-      for fileId in fileIdSelection[u'fileIds']:
-        j += 1
-        try:
-          f_file = callGAPI(drive.files(), u'get',
-                            throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
-                            fileId=fileId, fields=infoFields)
-          _recursivePrintFileList(f_file, 0)
-        except GAPI_fileNotFound:
-          sys.stderr.write(u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCountNL(j, jcount)))
-        except (GAPI_serviceNotAvailable, GAPI_authError):
-          entityServiceNotApplicableWarning(u'User', user, i, count)
-          break
+      else:
+        if anyowner:
+          fileIdSelection[u'query'] = _stripMeInOwners(fileIdSelection[u'query'])
+        user, drive, _ = validateUserGetFileIDs(user, i, count, fileIdSelection, body, parameters, drive=drive)
+        for fileId in fileIdSelection[u'fileIds']:
+          _printDriveFolderContents(fileId, 0)
+    except GAPI_invalidQuery:
+      sys.stderr.write(u'User: {0}, Show Failed: Query ({1}) Invalid{2}'.format(user, query, currentCountNL(i, count)))
+      break
+    except GAPI_fileNotFound:
+      sys.stderr.write(u' got 0 files for %s...\n' % user)
+    except (GAPI_serviceNotAvailable, GAPI_authError):
+      entityServiceNotApplicableWarning(u'User', user, i, count)
   if allfields:
     sortCSVTitles([u'Owner', u'id', DRIVE_FILE_NAME], titles)
   writeCSVfile(csvRows, titles, u'%s %s Drive Files' % (CL_argv[1], CL_argv[2]), todrive)
