@@ -10,6 +10,14 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+GAM 3.77.00
+
+Thanks to Jay for the following change.
+Added arguments to gam update cros to perform device actions. See: https://developers.google.com/admin-sdk/directory/v1/reference/chromeosdevices/action
+You can either update CrOS device attributes or perform a CrOS device action; if you specify both, only the device action will be performed.
+    gam update cros <CrOSList> (<CrOSAttributes>+)|(action deprovision_same_model_replace|deprovision_different_model_replace|deprovision_retiring_device|disable|reenable [acknowledge_device_touch_requirement])
+As a precatuion, none of the deprovisioning actions are performed unless you also specify the acknowledge_device_touch_requirement argument.
+
 GAM 3.76.03
 
 Improve performance of gam print filelist select.

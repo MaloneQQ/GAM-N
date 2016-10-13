@@ -24,7 +24,7 @@ For more information, see http://git.io/gam
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.76.03'
+__version__ = u'3.77.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys, os, time, datetime, random, socket, csv, platform, re, base64, string, codecs, StringIO, subprocess, collections, mimetypes
@@ -774,7 +774,6 @@ MESSAGE_WIKI_INSTRUCTIONS_OAUTH2SERVICE_JSON = u'Please follow the instructions 
 MESSAGE_OAUTH2SERVICE_JSON_INVALID = u'The file {0} is missing required keys (client_email, client_id or private_key).'
 
 # Error message types; keys into ARGUMENT_ERROR_NAMES; arbitrary values but must be unique
-ARGUMENTS_MUTUALLY_EXCLUSIVE = u'muex'
 ARGUMENT_BLANK = u'blnk'
 ARGUMENT_EMPTY = u'empt'
 ARGUMENT_EXTRANEOUS = u'extr'
@@ -784,7 +783,6 @@ ARGUMENT_MISSING = u'miss'
 # ARGUMENT_ERROR_NAMES[0] is plural,ARGUMENT_ERROR_NAMES[1] is singular
 # These values can be translated into other languages
 ARGUMENT_ERROR_NAMES = {
-  ARGUMENTS_MUTUALLY_EXCLUSIVE: [u'Mutually exclusive arguments', u'Mutually exclusive arguments'],
   ARGUMENT_BLANK: [u'Blank arguments', u'Blank argument'],
   ARGUMENT_EMPTY: [u'Empty arguments', u'Empty argument'],
   ARGUMENT_EXTRANEOUS: [u'Extra arguments', u'Extra argument'],
@@ -1037,9 +1035,6 @@ def invalidChoiceExit(choices):
 
 def missingChoiceExit(choices):
   expectedArgumentExit(ARGUMENT_ERROR_NAMES[ARGUMENT_MISSING][1], formatChoiceList(choices))
-
-def mutuallyExclusiveChoiceExit(choices):
-  expectedArgumentExit(ARGUMENT_ERROR_NAMES[ARGUMENTS_MUTUALLY_EXCLUSIVE][1], formatChoiceList(choices))
 
 # Initialize arguments
 def initializeArguments(args):
@@ -5163,42 +5158,67 @@ def getCrOSDeviceEntity():
                           fields=u'nextPageToken,chromeosdevices(deviceId)')
   return ([cros[u'deviceId'] for cros in devices], cd)
 
-CROS_STATUS_CHOICES_MAP = {
-  u'active': u'ACTIVE',
-  u'deprovisioned': u'DEPROVISIONED',
-  u'inactive': u'INACTIVE',
-  u'returnapproved': u'RETURN_APPROVED',
-  u'returnrequested': u'RETURN_REQUESTED',
-  u'shipped': u'SHIPPED',
-  u'unknown': u'UNKNOWN',
+UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP = {
+  u'annotatedassetid': u'annotatedAssetId',
+  u'annotatedlocation': u'annotatedLocation',
+  u'annotateduser': u'annotatedUser',
+  u'asset': u'annotatedAssetId',
+  u'assetid': u'annotatedAssetId',
+  u'location': u'annotatedLocation',
+  u'notes': u'notes',
+  u'org': u'orgUnitPath',
+  u'orgunitpath': u'orgUnitPath',
+  u'ou': u'orgUnitPath',
+  u'tag': u'annotatedAssetId',
+  u'user': u'annotatedUser',
+  }
+
+CROS_ACTION_CHOICES_MAP = {
+  u'deprovisionsamemodelreplace': (u'deprovision', u'same_model_replacement'),
+  u'deprovisionsamemodelreplacement': (u'deprovision', u'same_model_replacement'),
+  u'deprovisiondifferentmodelreplace': (u'deprovision', u'different_model_replacement'),
+  u'deprovisiondifferentmodelreplacement': (u'deprovision', u'different_model_replacement'),
+  u'deprovisionretiringdevice': (u'deprovision', u'retiring_device'),
+  u'disable': (u'disable', None),
+  u'reenable': (u'reenable', None)
   }
 
 def doUpdateCrosDevice():
   devices, cd = getCrOSDeviceEntity()
-  body = {}
+  update_body = {}
+  action_body = {}
+  ack_wipe = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg == u'user':
-      body[u'annotatedUser'] = getString(OB_STRING)
-    elif myarg == u'location':
-      body[u'annotatedLocation'] = getString(OB_STRING)
-    elif myarg == u'notes':
-      body[u'notes'] = getString(OB_STRING)
-    elif myarg == u'status':
-      body[u'status'] = getChoice(CROS_STATUS_CHOICES_MAP, mapChoice=True)
-    elif myarg in [u'tag', u'asset', u'assetid']:
-      body[u'annotatedAssetId'] = getString(OB_STRING)
-      #annotatedAssetId - Handle Asset Tag Field 2015-04-13
-    elif myarg in [u'ou', u'org']:
-      body[u'orgUnitPath'] = getOrgUnitPath()
+    if myarg in UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP:
+      up = UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP[myarg]
+      if up == u'orgUnitPath':
+        update_body[up] = getOrgUnitPath()
+      else:
+        update_body[up] = getString(OB_STRING, emptyOK=up != u'annotatedAssetId')
+    elif myarg == u'action':
+      action_body[u'action'], deprovisionReason = getChoice(CROS_ACTION_CHOICES_MAP, mapChoice=True)
+      if deprovisionReason:
+        action_body[u'deprovisionReason'] = deprovisionReason
+    elif myarg == u'acknowledgedevicetouchrequirement':
+      ack_wipe = True
     else:
       unknownArgumentExit()
   i = 0
   count = len(devices)
-  for deviceId in devices:
-    i += 1
-    print u'Update CrOS Device: {0}{1}'.format(deviceId, currentCount(i, count))
-    callGAPI(cd.chromeosdevices(), u'patch', deviceId=deviceId, body=body, customerId=GC_Values[GC_CUSTOMER_ID])
+  if action_body:
+    if action_body[u'action'] == u'deprovision' and not ack_wipe:
+      print u'WARNING: Refusing to deprovision {0} devices because acknowledge_device_touch_requirement not specified.\nDeprovisioning a device means the device will have to be physically wiped and re-enrolled to be managed by your domain again.\nThis requires physical access to the device and is very time consuming to perform for each device.\nPlease add "acknowledge_device_touch_requirement" to the GAM command if you understand this and wish to proceed with the deprovision.\nPlease also be aware that deprovisioning can have an effect on your device license count. See https://support.google.com/chrome/a/answer/3523633 for full details.'.format(count)
+      sys.exit(3)
+    for deviceId in devices:
+      i += 1
+      print u'Action CrOS Device: {0}, {1}{2}'.format(deviceId, action_body[u'action'], currentCount(i, count))
+      callGAPI(cd.chromeosdevices(), function=u'action', customerId=GC_Values[GC_CUSTOMER_ID], resourceId=deviceId, body=action_body)
+  elif update_body:
+    for deviceId in devices:
+      i += 1
+      print u'Update CrOS Device: {0}{1}'.format(deviceId, currentCount(i, count))
+      callGAPI(cd.chromeosdevices(), u'patch', customerId=GC_Values[GC_CUSTOMER_ID], deviceId=deviceId, body=update_body)
 
 CROS_ARGUMENT_TO_PROPERTY_MAP = {
   u'activetimeranges': [u'activeTimeRanges.activeTime', u'activeTimeRanges.date'],
@@ -9198,6 +9218,8 @@ FILELIST_FIELDS = [u'id', u'mimeType', u'parents(id)']
 
 def printDriveFileList(users):
   def _stripMeInOwners(query):
+    if not query:
+      return query
     if query == ME_IN_OWNERS:
       return None
     if query.startswith(ME_IN_OWNERS_AND):

@@ -390,7 +390,6 @@ If an item contains spaces, it should be surrounded by " or '.
 	(location <String>)|
 	(notes <String>)|
 	(org|ou <OrgUnitPath>)|
-	(status active|deprovisioned|inactive|returnapproved|returnrequested|shipped|unknown)|
 	(user <Name>)
 
 <DriveFileAddAttributes> ::=
@@ -583,7 +582,7 @@ gam calendar <CalendarItem> showacl
 gam calendar <CalendarItem> addevent <EventAttributes>+
 gam calendar <CalendarItem> wipe
 
-gam update cros <CrOSList> <CrOSAttributes>+
+gam update cros <CrOSList> (<CrOSAttributes>+)|(action deprovision_same_model_replace|deprovision_different_model_replace|deprovision_retiring_device|disable|reenable [acknowledge_device_touch_requirement])
 gam info cros <CrOSList> [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 
