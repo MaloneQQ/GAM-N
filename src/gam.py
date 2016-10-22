@@ -90,14 +90,10 @@ GAM_INFO = u'GAM {0} - {1} / {2} / Python {3}.{4}.{5} {6} / {7} {8} /'.format(__
                                                                               sys.version_info[0], sys.version_info[1], sys.version_info[2],
                                                                               sys.version_info[3],
                                                                               platform.platform(), platform.machine())
-GAM_RELEASES = u'https://github.com/taers232c/{0}/releases'.format(GAM)
 GAM_WIKI = u'https://github.com/jay0lee/GAM/wiki'
 GAM_WIKI_CREATE_CLIENT_SECRETS = GAM_WIKI+u'/CreatingClientSecretsFile'
-GAM_APPSPOT = u'https://gamn-update.appspot.com'
-GAM_APPSPOT_STABLE_VERSION = GAM_APPSPOT+u'/stable-version.txt?v='+__version__
-GAM_APPSPOT_STABLE_VERSION_ANNOUNCEMENT = GAM_APPSPOT+u'/stable-version-announcement.txt?v='+__version__
-GAM_APPSPOT_LATEST_VERSION = GAM_APPSPOT+u'/latest-version.txt?v='+__version__
-GAM_APPSPOT_LATEST_VERSION_ANNOUNCEMENT = GAM_APPSPOT+u'/latest-version-announcement.txt?v='+__version__
+GAM_ALL_RELEASES = u'https://api.github.com/repos/taers232c/'+GAM+u'/releases'
+GAM_LATEST_RELEASE = GAM_ALL_RELEASES+u'/latest'
 
 TRUE = u'true'
 FALSE = u'false'
@@ -779,7 +775,7 @@ MESSAGE_BATCH_CSV_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible 
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large Google Apps instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
-MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can create a file named noupdatecheck.txt in the same location as gam.py or gam.exe and GAM won\'t ever check for updates.'
+MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version.\nGAM won\'t bother you with this announcement for 1 week or you can create a file named noupdatecheck.txt in the same location as gam.py or gam.exe and GAM won\'t ever check for updates.'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
 MESSAGE_NO_PYTHON_SSL = u'You don\'t have the Python SSL module installed so we can\'t verify SSL Certificates. You can fix this by installing the Python SSL module or you can live on the edge and turn SSL validation off by creating a file named noverifyssl.txt in the same location as gam.exe / gam.py'
@@ -2000,30 +1996,42 @@ def SetGlobalVariables():
 def doGAMCheckForUpdates(forceCheck=False):
   import urllib2
   import calendar
+
   current_version = __version__
   now_time = calendar.timegm(time.gmtime())
-  if not forceCheck:
+  if forceCheck:
+    check_url = GAM_ALL_RELEASES # includes pre-releases
+  else:
     last_check_time_str = readFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], continueOnError=True, displayError=False)
     last_check_time = int(last_check_time_str) if last_check_time_str and last_check_time_str.isdigit() else 0
     if last_check_time > now_time-604800:
       return
+    check_url = GAM_LATEST_RELEASE # latest full release
   try:
-    c = urllib2.urlopen([GAM_APPSPOT_STABLE_VERSION, GAM_APPSPOT_LATEST_VERSION][forceCheck])
-    latest_version = c.read().strip()
+    c = urllib2.urlopen(check_url)
+    try:
+      release_data = json.loads(c.read())
+    except ValueError:
+      return
+    if isinstance(release_data, list):
+      release_data = release_data[0] # only care about latest release
+    latest_version = release_data[u'tag_name']
+    if latest_version[0].lower() == u'v':
+      latest_version = latest_version[1:]
     if forceCheck or (latest_version > current_version):
-      print u'Version: Check, Current: {0}, {1}: {2}'.format(current_version, [u'Stable', u'Latest'][forceCheck], latest_version)
+      print u'Version Check\n  Current: {0}\n  Latest : {1}'.format(current_version, latest_version)
     if latest_version <= current_version:
       writeFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], str(now_time), continueOnError=True, displayError=forceCheck)
       return
-    a = urllib2.urlopen([GAM_APPSPOT_STABLE_VERSION_ANNOUNCEMENT, GAM_APPSPOT_LATEST_VERSION_ANNOUNCEMENT][forceCheck])
-    announcement = a.read()
+    sys.stderr.write(u'\nGAM %s release notes:\n\n' % latest_version)
+    announcement = release_data.get(u'body', u'No details about this release')
     sys.stderr.write(announcement)
     try:
       printLine(MESSAGE_HIT_CONTROL_C_TO_UPDATE)
       time.sleep(15)
     except KeyboardInterrupt:
       import webbrowser
-      webbrowser.open(GAM_RELEASES)
+      webbrowser.open(release_data[u'html_url'])
       printLine(MESSAGE_GAM_EXITING_FOR_UPDATE)
       sys.exit(0)
     writeFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], str(now_time), continueOnError=True, displayError=forceCheck)
@@ -8147,7 +8155,7 @@ def doPrinterRegister():
                  u'gcp_version': u'2.0',
                  u'setup_url': GAM_URL,
                  u'support_url': u'https://groups.google.com/forum/#!forum/google-apps-manager',
-                 u'update_url': GAM_RELEASES,
+                 u'update_url': GAM_LATEST_RELEASE,
                  u'firmware': __version__,
                  u'semantic_state': {"version": "1.0", "printer": {"state": "IDLE",}},
                  u'use_cdd': True,
