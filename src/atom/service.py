@@ -181,7 +181,7 @@ class AtomService(object):
       if content_length:
         all_headers['Content-Length'] = str(content_length)
 
-    if 'GData-Version' not in all_headers:  
+    if 'GData-Version' not in all_headers:
       all_headers['GData-Version'] = '2.0'
     # Find an Authorization token for this URL if one is available.
     if self.override_token:

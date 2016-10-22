@@ -10,6 +10,29 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+GAM 3.78.00
+
+Note!!! Functionality change.
+Changed command gam show filetree to show only files owned by the user by default; this makes it consistent with gam show filelist.
+To get the prior behavior, add the anyowner argument.
+    gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+
+Added invitations argument to gam delete guardian so that only a pending invitation for a guardian is cancelled.
+    gam delete guardian|guardians <GuardianItem> <StudentItem> [invitations]
+
+Added a command to cancel guardian invitations by invitation ID.
+    gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
+
+Added arguments to gam update user to enable clearing entire schemas or schema fields.
+    gam update user <UserItem> <UserAttributes>+ [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
+See 3.74.05 for note about updating multi-valued schema fields.
+
+Note!!! Functionality change.
+Starting in Gam 3.7, gam signature and gam show signature were operating on the primary signature of a user, regardless of the user name passed on the command line.
+Now, the commands work on the signature of the user specified on the command line. To get the previous behavior, user the primary argument.
+    gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
+    gam <UserTypeEntity> show signature|sig [format] [primary]
+
 GAM 3.77.00
 
 Thanks to Jay for the following change.
@@ -72,8 +95,9 @@ Gam forward and print/show forward now use Gmail API.
 
 GAM 3.74.05
 
-Custom schema fields can be single-valued or multi-valued. Gam has always supported both but has not supported the
-type characteristic within a multi-valued schema field. In gam create/update user, schema fields are now specified as:
+Added support for specifying type in multi-valued schemas. Custom schema fields can be single-valued or multi-valued;
+Gam has always supported both but has not supported the type characteristic within a multi-valued schema field.
+In gam create/update user, schema fields are now specified as:
     <SchemaName>.<FieldName> [multivalued [type work|home|other|(custom <CustomType>)]] <String>
 Examples:
 TestSchema.SVField <String> - value is <String>
@@ -201,8 +225,8 @@ Added argument to gam <UserTypeEntity> signature and gam <UserTypeEntity> vacati
 gam <UserTypeEntity> signature <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)*
 gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*
 	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
-Every instance of {<Tag>} in the signature/message will be replaced by <String>. Instances of the form {RT}...{Text}...{/RT} will be eliminated
-if there was no <Tag> specified that matches Text or if a <Tag> matching Text was specified but the matching <String> is empty.
+Every instance of {<Tag>} in the signature/message will be replaced by <String>. Instances of the form {RT}...{Tag}...{/RT} will be eliminated
+if there was no <Tag> specified that matches Tag or if a <Tag> matching Tag was specified but the matching <String> is empty.
 This is especially useful with CSV files.
 gam csv Users.csv gam user "~User" signature file SignatureTemplate.txt replace "#User#" "~User" replace "#Title#" "~Title"
 

@@ -1016,8 +1016,9 @@ class GDataService(atom.service.AtomService):
     raise RanOutOfTries('Ran out of tries.')
 
   # CRUD operations
-  def Get(self, uri, extra_headers=None, redirects_remaining=4, 
-      encoding='UTF-8', converter=None):
+  def Get(self, uri, extra_headers=None, url_params=None,
+          escape_params=True, redirects_remaining=4, 
+          encoding='UTF-8', converter=None):
     """Query the GData API with the given URI
 
     The uri is the portion of the URI after the server value 
@@ -1036,6 +1037,15 @@ class GDataService(atom.service.AtomService):
                      those stored in the client's additional_headers property.
                      The client automatically sets the Content-Type and 
                      Authorization headers.
+      url_params: dict (optional) Additional URL parameters to be included
+                  in the URI. These are translated into query arguments
+                  in the form '&dict_key=value&...'.
+                  Example: {'max-results': '250'} becomes &max-results=250
+      escape_params: boolean (optional) If false, the calling code has already
+                     ensured that the query will form a valid URL (all
+                     reserved characters have been escaped). If true, this
+                     method will escape the query and any URL parameters
+                     provided.
       redirects_remaining: int (optional) Tracks the number of additional
           redirects this method will allow. If the service object receives
           a redirect and remaining is 0, it will not follow the redirect. 
@@ -1066,7 +1076,7 @@ class GDataService(atom.service.AtomService):
           uri += '?gsessionid=%s' % (self.__gsessionid,)
 
     server_response = self.request('GET', uri, 
-        headers=extra_headers)
+        headers=extra_headers, url_params=url_params)
     result_body = server_response.read()
 
     if server_response.status == 200:
@@ -1112,7 +1122,7 @@ class GDataService(atom.service.AtomService):
     URI string.
     """
     response_handle = self.request('GET', uri,
-        headers=extra_headers)
+        headers=extra_headers, url_params=url_params)
     return gdata.MediaSource(response_handle, response_handle.getheader(
             'Content-Type'),
         response_handle.getheader('Content-Length'))

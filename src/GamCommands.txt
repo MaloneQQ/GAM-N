@@ -16,7 +16,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <String> ::= a string of characters, surrounded by " or ' if it contains spaces
 <TrueValues> ::= true|on|yes|enabled|1
 <FalseValues>= false|off|no|disabled|0
-<DataTransferService> ::= googleplus|google+|gplus|g+|googledrive|gdrive|drive
+<DataTransferService> ::= googledrive|gdrive|drive|"drive and docs"
 <ProductID> ::= Google-Apps|Google-Drive-storage|Google-Vault|Google-Coordinate
 <SKUID> ::=
 	apps|gafb|gafw|Google-Apps-For-Business|
@@ -92,7 +92,8 @@ If an item contains spaces, it should be surrounded by " or '.
 <FilterID> ::= <Sttring>
 <FolderName> ::= <String>
 <GroupItem> ::= <EmailAddress>|<UniqueID>|<String>
-<GuardianID> ::= <String>
+<GuardianItem> ::= <EmailAddress>|<UniqueID>|<String>
+<GuardianInvitationID> ::= <String>
 <HostName> ::= <String>
 <Key> ::= <String>
 <LabelID> ::= <String>
@@ -128,8 +129,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <RoleAssignmentID> ::= <String>
 <SchemaName> ::= <String>
 <Section> ::= <String>
-<StudentID> ::= <String>
-<TeacherID> ::= <String>
+<StudentItem> ::= <EmailAddress>|<UniqueID>|<String>
 <Timezone> ::= <String>
 <Title> ::= <String>
 <URI> ::= <String>
@@ -310,7 +310,6 @@ If an item contains spaces, it should be surrounded by " or '.
 	suspended|
 	thumbnailphotourl|photo|photourl|
 	websites|website|
-	custom all|<SchemaNameList>
 
 <UserOrderByFieldName> ::=
 	familyname|lastname|givenname|firstname|email
@@ -614,21 +613,20 @@ gam print mobile [todrive] [query <QueryMobile>] [basic|full] [orderby <MobileOr
 
 gam create group <EmailAddress> <GroupAttributes>*
 gam update group <GroupItem> [admincreated <Boolean>] [email <EmailAddress>] <GroupAttributes>*
-gam update group <GroupItem> add [owner|manager|member] [notsuspended] <UserTypeEntity>
-gam update group <GroupItem> delete|remove [owner|manager|member] <UserTypeEntity>
-gam update group <GroupItem> sync [owner|manager|member] [notsuspended] <UserTypeEntity>
-gam update group <GroupItem> update [owner|manager|member] <UserTypeEntity>
+gam update group <GroupItem> add [member|manager|owner] [notsuspended] <UserTypeEntity>
+gam update group <GroupItem> delete|remove [member|manager|owner] <UserTypeEntity>
+gam update group <GroupItem> sync [member|manager|owner] [notsuspended] <UserTypeEntity>
+gam update group <GroupItem> update [member|manager|owner] <UserTypeEntity>
 gam delete group <GroupItem>
 gam info group <GroupItem> [nousers] [noaliases] [groups] <GroupFieldName>* [fields <GroupFieldNameList>]
-gam update group <GroupItem> clear [owner] [manager] [member]
+gam update group <GroupItem> clear [member] [manager] [owner]
 
 gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])
 	[maxresults <Number>] [delimiter <String>]
-	[members] [owners] [managers] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
+	[members] [managers] [owners] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
 
 gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]
 	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
-
 
 gam print licenses [todrive] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
 
@@ -650,13 +648,13 @@ gam show schema|schemas
 gam print schema|schemas
 
 gam create user <EmailAddress> <UserAttrubutes>*
-gam update user <UserItem> <UserAttributes>+
+gam update user <UserItem> <UserAttributes>* [clearschema <SchemaName>] [clearschema <SchemaName>.<FieldName>]
 gam delete user <UserItem>
 gam undelete user <UserItem> [org|ou <OrgUnitPath>]
-gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
+gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [noschemas] [schemas|custom <SchemaNameList>] [userview] <UserFieldName>* [fields <UserFieldNameList>] [(products|product <ProductIDList>)|(skus|sku <SKUIDList>)]
 
 gam print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])
-	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom <SchemaNameList>]
+	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
 	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
 	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
 gam <UserTypeEntity> print
@@ -664,7 +662,7 @@ gam <UserTypeEntity> print
 Summary of printing:
 gam print users
 Prints a header row and primaryEmail for all users.
-gam <UserTypeEntity> print users
+gam <UserTypeEntity> print
 Prints no header row and primaryEmail for specified users.
 
 gam create verify|verification <DomainName>
@@ -685,9 +683,10 @@ gam course <CourseID> sync teachers|students <UserTypeEntity>
 gam print course-participants [todrive] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>]) [show all|students|teachers]
 
 gam create guardian|guardianinvite|inviteguardian <EmailAddress> <UserItem>
-gam delete guardian|guardians <GuardianID>|<EmailAddress> <UserItem>
-gam show guardian|guardians [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
-gam print guardian|guardians [todrive] [invitedguardian <GuardianID>] [student <UserItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+gam delete guardian|guardians <GuardianItem> <StudentItem> [invitations]
+gam show guardian|guardians [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
+gam print guardian|guardians [todrive] [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations [states <GuardianStateList>]] [<UserTypeEntity>]
+gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
 
 gam printer register
 gam update printer <PrinterID> <PrinterAttributes>+
@@ -741,7 +740,7 @@ gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriv
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 gam <UserTypeEntity> show filerevisions <DriveFileEntity>
-gam <UserTypeEntity> show filetree [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
 gam <UserTypeEntity> show filepath <DriveFileEntity>
 
 gam <UserTypeEntity> add drivefile [drivefilename <DriveFileName>] <DriveFileAddAttributes>*
@@ -761,7 +760,7 @@ gam <UserTypeEntity> show drivefileacl <DriveFileEntity> [showtitles]
 
 gam <UserTypeEntity> delete|del alias|aliases
 
-gam <UserTypeEntity> add group|groups [owner|manager|member] [<GroupList>]
+gam <UserTypeEntity> add group|groups [member|manager|owner] [<GroupList>]
 gam <UserTypeEntity> delete|del group|groups [<GroupList>]
 
 gam <UserTypeEntity> add license <SKUID>
@@ -802,8 +801,6 @@ gam <UserTypeEntity> untrash messages query <QueryGmail> [doit] [max_to_untrash|
 gam <UserTypeEntity> show gmailprofile [todrive]
 gam <UserTypeEntity> show gplusprofile [todrive]
 
-gam <UserTypeEntity> arrows <Boolean>
-
 gam <UserTypeEntity> add delegate|delegates <EmailAddress>
 gam <UserTypeEntity> delegate|delegates to <EmailAddress>
 gam <UserTypeEntity> delete|del delegate|delegates <EmailAddress>
@@ -834,10 +831,6 @@ gam <UserTypeEntity> show imap|imap4
 gam <UserTypeEntity> pop|pop3 <Boolean> [for allmail|newmail|mailfromnowon|fromnowown] [action keep|leaveininbox|archive|delete|trash|markread]
 gam <UserTypeEntity> show pop|pop3
 
-gam <UserTypeEntity> language <Language>
-
-gam <UserTypeEntity> pagesize 25|50|100
-
 gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
 gam <UserTypeEntity> delete sendas <EmailAddress>
@@ -845,18 +838,24 @@ gam <UserTypeEntity> show sendas [format]
 gam <UserTypeEntity> info sendas <EmailAddress> [format]
 gam <UserTypeEntity> print sendas [todrive]
 
-gam <UserTypeEntity> shortcuts <Boolean>
-
-gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
-gam <UserTypeEntity> show signature|sig [format]
-
-gam <UserTypeEntity> snippets <Boolean>
-
-gam <UserTypeEntity> utf|utf8|utf-8|unicode <Boolean>
+gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
+gam <UserTypeEntity> show signature|sig [format] [primary]
 
 gam <UserTypeEntity> vacation <FalseValues>
 gam <UserTypeEntity> vacation <TrueValues> subject <String> (message <String>)|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)* [html]
 	[contactsonly] [domainonly] [startdate <Date>] [enddate <Date>]
 gam <UserTypeEntity> show vacation [format]
+
+gam <UserTypeEntity> arrows <Boolean>
+
+gam <UserTypeEntity> language <Language>
+
+gam <UserTypeEntity> pagesize 25|50|100
+
+gam <UserTypeEntity> shortcuts <Boolean>
+
+gam <UserTypeEntity> snippets <Boolean>
+
+gam <UserTypeEntity> utf|utf8|utf-8|unicode <Boolean>
 
 gam <UserTypeEntity> webclips <Boolean>

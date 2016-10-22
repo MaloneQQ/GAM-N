@@ -1110,7 +1110,7 @@ def token_to_blob(token):
 
   Supported token classes: ClientLoginToken, AuthSubToken, SecureAuthSubToken,
   OAuthRsaToken, and OAuthHmacToken, TwoLeggedOAuthRsaToken,
-  TwoLeggedOAuthHmacToken.
+  TwoLeggedOAuthHmacToken and OAuth2Token.
 
   Args:
     token: A token object which must be of one of the supported token classes.
@@ -1152,6 +1152,11 @@ def token_to_blob(token):
         '1h', token.consumer_key, token.consumer_secret, token.token,
         token.token_secret, str(token.auth_state), token.next,
         token.verifier)
+  elif isinstance(token, OAuth2Token):
+    return _join_token_parts(
+        '2o', token.client_id, token.client_secret, token.scope,
+        token.user_agent, token.auth_uri, token.token_uri,
+        token.access_token, token.refresh_token)
   else:
     raise UnsupportedTokenType(
         'Unable to serialize token of type %s' % type(token))
@@ -1165,7 +1170,7 @@ def token_from_blob(blob):
 
   Supported token classes: ClientLoginToken, AuthSubToken, SecureAuthSubToken,
   OAuthRsaToken, and OAuthHmacToken, TwoLeggedOAuthRsaToken,
-  TwoLeggedOAuthHmacToken.
+  TwoLeggedOAuthHmacToken and OAuth2Token.
 
   Args:
     blob: string created by token_to_blob.
@@ -1198,6 +1203,9 @@ def token_from_blob(blob):
     auth_state = int(parts[5])
     return OAuthHmacToken(parts[1], parts[2], parts[3], parts[4], auth_state,
                           parts[6], parts[7])
+  elif parts[0] == '2o':
+    return OAuth2Token(parts[1], parts[2], parts[3], parts[4], parts[5],
+                       parts[6], parts[7], parts[8])
   else:
     raise UnsupportedTokenType(
         'Unable to deserialize token with type marker of %s' % parts[0])
@@ -1218,7 +1226,7 @@ def find_scopes_for_services(service_names=None):
   """Creates a combined list of scope URLs for the desired services.
 
   This method searches the AUTH_SCOPES dictionary.
-  
+
   Args:
     service_names: list of strings (optional) Each name must be a key in the
                    AUTH_SCOPES dictionary. If no list is provided (None) then
