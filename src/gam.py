@@ -4528,8 +4528,41 @@ def doUpdateInstance():
     keyData = readFile(keyFile)
     callGData(adminObj, u'UpdateSSOKey', signingKey=keyData)
 
+MAXIMUM_USERS_MAP = [u'maximumNumberOfUsers', u'Maximum Users']
+CURRENT_USERS_MAP = [u'currentNumberOfUsers', u'Current Users']
+DOMAIN_EDITION_MAP = [u'edition', u'Domain Edition']
+CUSTOMER_PIN_MAP = [u'customerPIN', u'Customer PIN']
+SINGLE_SIGN_ON_SETTINGS_MAP = [u'enableSSO', u'SSO Enabled',
+                               u'samlSignonUri', u'SSO Signon Page',
+                               u'samlLogoutUri', u'SSO Logout Page',
+                               u'changePasswordUri', u'SSO Password Page',
+                               u'ssoWhitelist', u'SSO Whitelist IPs',
+                               u'useDomainSpecificIssuer', u'SSO Use Domain Specific Issuer']
+SINGLE_SIGN_ON_SIGNING_KEY_MAP = [u'algorithm', u'SSO Key Algorithm',
+                                  u'format', u'SSO Key Format',
+                                  u'modulus', u'SSO Key Modulus',
+                                  u'exponent', u'SSO Key Exponent',
+                                  u'yValue', u'SSO Key yValue',
+                                  u'signingKey', u'Full SSO Key']
+
 def doInfoInstance():
-  adm = buildGAPIObject(GAPI_ADMIN_SETTINGS_API)
+  def _printAdminSetting(service, propertyTitleMap):
+    try:
+      result = callGAPI(service, u'get',
+                        throw_reasons=[GAPI_DOMAIN_NOT_FOUND, GAPI_INVALID],
+                        domainName=GC_Values[GC_DOMAIN])
+      if result and (u'entry' in result) and (u'apps$property' in result[u'entry']):
+        for i in range(0, len(propertyTitleMap), 2):
+          asProperty = propertyTitleMap[i]
+          for entry in result[u'entry'][u'apps$property']:
+            if entry[u'name'] == asProperty:
+              printKeyValueList(u'', [propertyTitleMap[i+1], entry[u'value']])
+              break
+    except GAPI_domainNotFound:
+      systemErrorExit(INVALID_DOMAIN_RC, formatKeyValueList(u'', [u'Domain', GC_Values[GC_DOMAIN], PHRASE_DOES_NOT_EXIST], u''))
+    except GAPI_invalid:
+      pass
+
   if checkArgumentPresent(LOGO_ARGUMENT):
     target_file = getString(OB_FILE_NAME)
     checkForExtraneousArguments()
@@ -4538,45 +4571,13 @@ def doInfoInstance():
     return
   checkForExtraneousArguments()
   doInfoCustomer()
-  max_users = callGAPI(adm.maximumNumberOfUsers(), u'get', domainName=GC_Values[GC_DOMAIN])
-  print u'Maximum Users: %s' % max_users[u'entry'][u'apps$property'][0][u'value']
-  current_users = callGAPI(adm.currentNumberOfUsers(), u'get', domainName=GC_Values[GC_DOMAIN])
-  print u'Current Users: %s' % current_users[u'entry'][u'apps$property'][0][u'value']
-  domain_edition = callGAPI(adm.edition(), u'get', domainName=GC_Values[GC_DOMAIN])
-  print u'Domain Edition: %s' % domain_edition[u'entry'][u'apps$property'][0][u'value']
-  customer_pin = callGAPI(adm.customerPIN(), u'get', domainName=GC_Values[GC_DOMAIN])
-  print u'Customer PIN: %s' % customer_pin[u'entry'][u'apps$property'][0][u'value']
-  ssosettings = callGAPI(adm.ssoGeneral(), u'get', domainName=GC_Values[GC_DOMAIN])
-  for entry in ssosettings[u'entry'][u'apps$property']:
-    if entry[u'name'] == u'enableSSO':
-      print u'SSO Enabled: %s' % entry[u'value']
-    elif entry[u'name'] == u'samlSignonUri':
-      print u'SSO Signon Page: %s' % entry[u'value']
-    elif entry[u'name'] == u'samlLogoutUri':
-      print u'SSO Logout Page: %s' % entry[u'value']
-    elif entry[u'name'] == u'changePasswordUri':
-      print u'SSO Password Page: %s' % entry[u'value']
-    elif entry[u'name'] == u'ssoWhitelist':
-      print u'SSO Whitelist IPs: %s' % entry[u'value']
-    elif entry[u'name'] == u'useDomainSpecificIssuer':
-      print u'SSO Use Domain Specific Issuer: %s' % entry[u'value']
-  try:
-    ssokey = callGAPI(adm.ssoSigningKey(), u'get', throw_reasons=[GAPI_INVALID], domainName=GC_Values[GC_DOMAIN])
-    for entry in ssokey[u'entry'][u'apps$property']:
-      if entry[u'name'] == u'algorithm':
-        print u'SSO Key Algorithm: %s' % entry[u'value']
-      elif entry[u'name'] == u'format':
-        print u'SSO Key Format: %s' % entry[u'value']
-      elif entry[u'name'] == u'modulus':
-        print u'SSO Key Modulus: %s' % entry[u'value']
-      elif entry[u'name'] == u'exponent':
-        print u'SSO Key Exponent: %s' % entry[u'value']
-      elif entry[u'name'] == u'yValue':
-        print u'SSO Key yValue: %s' % entry[u'value']
-      elif entry[u'name'] == u'signingKey':
-        print u'Full SSO Key: %s' % entry[u'value']
-  except (TypeError, GAPI_invalid):
-    pass
+  adm = buildGAPIObject(GAPI_ADMIN_SETTINGS_API)
+  _printAdminSetting(adm.maximumNumberOfUsers(), MAXIMUM_USERS_MAP)
+  _printAdminSetting(adm.currentNumberOfUsers(), CURRENT_USERS_MAP)
+  _printAdminSetting(adm.edition(), DOMAIN_EDITION_MAP)
+  _printAdminSetting(adm.customerPIN(), CUSTOMER_PIN_MAP)
+  _printAdminSetting(adm.ssoGeneral(), SINGLE_SIGN_ON_SETTINGS_MAP)
+  _printAdminSetting(adm.ssoSigningKey(), SINGLE_SIGN_ON_SIGNING_KEY_MAP)
 
 def doCreateOrg():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
