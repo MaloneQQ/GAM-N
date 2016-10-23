@@ -8,7 +8,7 @@ You can download the current GAM-N release from the [GitHub Releases] page.
 
 Documentation
 ------------------
-The GAM-N documentation is hosted in the [GitHub Wiki]
+General GAM documentation is hosted in the [GitHub Wiki]. Documentation specifically for GAM-N is in Gam*.txt files.
 
 Mailing List / Discussion group
 -------------------------------
