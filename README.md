@@ -1,27 +1,22 @@
-GAM
+GAM-N
 ============================
-GAM is a free, open source command line tool for
-Google Apps Administrators to manage
-domain and user settings quickly and easily.
+GAM-N is a free, open source command line tool for Google G Suite Administrators to manage domain and user settings quickly and easily.
 
 Downloads
 ---------
-You can download the current GAM release from 
-the [GitHub Releases] page.
+You can download the current GAM-N release from the [GitHub Releases] page.
 
 Documentation
 ------------------
-The GAM documentation is hosted in the [GitHub Wiki]
+The GAM-N documentation is hosted in the [GitHub Wiki]
 
 Mailing List / Discussion group
 -------------------------------
-The GAM mailing list / discussion group is hosted
-on [Google Groups].  You can join the list and interact
-via email, or just post from the web itself.
+The GAM mailing list / discussion group is hosted on [Google Groups].  You can join the list and interact via email, or just post from the web itself.
 
 Source Repository
 -----------------
-The official GAM source repository is on [GitHub] in the master branch.
+The official GAM-N source repository is on [GitHub] in the master branch.
 
 Author
 ------

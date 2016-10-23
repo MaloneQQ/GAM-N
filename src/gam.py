@@ -2019,7 +2019,7 @@ def doGAMCheckForUpdates(forceCheck=False):
     if latest_version[0].lower() == u'v':
       latest_version = latest_version[1:]
     if forceCheck or (latest_version > current_version):
-      print u'Version Check\n  Current: {0}\n  Latest : {1}'.format(current_version, latest_version)
+      print u'Version Check\n  Current: {0}\n   Latest: {1}'.format(current_version, latest_version)
     if latest_version <= current_version:
       writeFile(GM_Globals[GM_LAST_UPDATE_CHECK_TXT], str(now_time), continueOnError=True, displayError=forceCheck)
       return
