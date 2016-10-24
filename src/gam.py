@@ -7835,19 +7835,23 @@ def doPrintShowGuardians(csvFormat):
       kwargs[u'states'] = states
     if studentId != u'-':
       if csvFormat:
-        sys.stderr.write('\r')
-        sys.stderr.flush()
-        sys.stderr.write(u'Getting %s for %s%s%s' % (itemName, studentId, currentCount(i, count), u' ' * 40))
-    guardians = callGAPIpages(service, u'list', items=items,
-                              soft_errors=True, **kwargs)
-    if not csvFormat:
-      print u'Student: {0}, {1}:{2}'.format(studentId, itemName, currentCount(i, count))
-      for guardian in guardians:
-        showJSON(None, guardian, spacing=u'  ')
-    else:
-      for guardian in guardians:
-        guardian[u'studentEmail'] = studentId
-        addRowTitlesToCSVfile(flattenJSON(guardian), csvRows, titles)
+        sys.stderr.write(u'Getting %s for %s%s' % (itemName, studentId, currentCountNL(i, count)))
+    try:
+      guardians = callGAPIpages(service, u'list', items=items,
+                                throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT, GAPI_BAD_REQUEST, GAPI_FORBIDDEN, GAPI_PERMISSION_DENIED],
+                                **kwargs)
+      if not csvFormat:
+        print u'Student: {0}, {1}:{2}'.format(studentId, itemName, currentCount(i, count))
+        for guardian in guardians:
+          showJSON(None, guardian, spacing=u'  ')
+      else:
+        for guardian in guardians:
+          guardian[u'studentEmail'] = studentId
+          addRowTitlesToCSVfile(flattenJSON(guardian), csvRows, titles)
+    except (GAPI_notFound, GAPI_invalidArgument, GAPI_badRequest, GAPI_forbidden):
+      entityUnknownWarning(u'Student', studentId, i, count)
+    except GAPI_permissionDenied as e:
+      sys.stderr.write(u'{0} guardians for Student {1} failed: {2}{3}'.format([u'show', u'print'][csvFormat], studentId, e.message, currentCountNL(i, count)))
   if csvFormat:
     sys.stderr.write(u'\n')
     writeCSVfile(csvRows, titles, itemName, todrive)
