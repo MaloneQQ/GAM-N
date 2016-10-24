@@ -7719,8 +7719,15 @@ def doInviteGuardian():
   body = {u'invitedEmailAddress': getEmailAddress()}
   studentId = normalizeStudentGuardianEmailAddressOrUID(getString(OB_STUDENT_ITEM))
   checkForExtraneousArguments()
-  result = callGAPI(croom.userProfiles().guardianInvitations(), u'create', studentId=studentId, body=body)
-  print u'Invited email %s as guardian of %s. Invite ID %s' % (result[u'invitedEmailAddress'], studentId, result[u'invitationId'])
+  try:
+    result = callGAPI(croom.userProfiles().guardianInvitations(), u'create',
+                      throw_reasons=[GAPI_NOT_FOUND, GAPI_INVALID_ARGUMENT, GAPI_BAD_REQUEST, GAPI_FORBIDDEN, GAPI_PERMISSION_DENIED, GAPI_ALREADY_EXISTS],
+                      studentId=studentId, body=body)
+    print u'Invited email %s as guardian of %s. Invite ID %s' % (result[u'invitedEmailAddress'], studentId, result[u'invitationId'])
+  except (GAPI_notFound, GAPI_invalidArgument, GAPI_badRequest, GAPI_forbidden):
+    entityUnknownWarning(u'Student', studentId, 0, 0)
+  except GAPI_alreadyExists:
+    stderrErrorMsg(u'Invited email %s as guardian of %s is a duplicate' % (body[u'invitedEmailAddress'], studentId))
 
 def _cancelGuardianInvitation(croom, studentId, invitationId):
   try:
