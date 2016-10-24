@@ -683,7 +683,7 @@ gam course <CourseID> sync teachers|students <UserTypeEntity>
 gam print course-participants [todrive] (course|class <CourseID>)*|([teacher <UserItem>] [student <UserItem>]) [show all|students|teachers]
 
 gam create guardian|guardianinvite|inviteguardian <EmailAddress> <UserItem>
-gam delete guardian|guardians <GuardianItem> <StudentItem> [invitations]
+gam delete guardian|guardians <GuardianItem> <StudentItem> [invitation]
 gam show guardian|guardians [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations] [states <GuardianStateList>] [<UserTypeEntity>]
 gam print guardian|guardians [todrive] [invitedguardian <EmailAddress>] [student <StudentItem>] [invitations [states <GuardianStateList>]] [<UserTypeEntity>]
 gam cancel guardianinvitation|guardianinvitations <GuardianInvitationID> <StudentItem>
