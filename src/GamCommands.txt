@@ -369,7 +369,10 @@ If an item contains spaces, it should be surrounded by " or '.
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)
 
-<DriveFileEntity> ::= ([id] <DriveFileItem>)|(ids <DriveFileList>)|(drivefilename(:| )<DriveFileName>)|(query(:| )<QueryDriveFile>)|root
+<DriveFileIDEntity> ::= (<DriveFileItem>)|(id <DriveFileItem>)|(id:<DriveFileItem>)|(ids <DriveFileList>)|(ids:<DriveFileList>)
+<DriveFileNameEntity> ::= (drivefilename <DriveFileName>)|(drivefilename:<DriveFileName>)|(anydrivefilename <DriveFileName>)|(anydrivefilename:<DriveFileName>)
+<DriveFileQueryEntity> ::= (query <QueryDriveFile>)|(query:<QueryDriveFile>)
+<DriveFileEntity> ::= <DriveFileIDEntity>|<DriveFileNameEntity>|<DriveFileQueryEntity>|root
 
 # Item attributes
 <CalendarAttributes> ::=
@@ -740,7 +743,7 @@ gam <UserTypeEntity> print|show filelist [todrive] [anyowner] ([query <QueryDriv
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 gam <UserTypeEntity> show filerevisions <DriveFileEntity>
-gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])*
+gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])* [depth <Number>]
 gam <UserTypeEntity> show filepath <DriveFileEntity>
 
 gam <UserTypeEntity> add drivefile [drivefilename <DriveFileName>] <DriveFileAddAttributes>*

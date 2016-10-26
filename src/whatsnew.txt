@@ -10,6 +10,24 @@ You'll notice that the API Scopes - OAuth2 list has additional entries, these ar
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
 You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
 
+GAM 3.78.02
+
+Added depth <Number> argument to show filetree
+    gam <UserTypeEntity> show filetree [anyowner] [select <DriveFileEntity>] (orderby <DriveOrderByFieldName> [ascending|descending])* [depth <Number>]
+If depth equals -1 (the default), all files and folders below the selected folder are listed. The root folder is selected by default.
+If depth is 0, files or folders within a selected folder are listed.
+If depth is greater than 0, the files and folders within the selected folder and those files and folders depth-1 levels below the selected folder are listed.
+
+Added anydrivefilename argument to allow specification of drive file names for files you don't own but can access, i.e., files shared with you.
+    <DriveFileIDEntity> ::= (<DriveFileItem>)|(id <DriveFileItem>)|(id:<DriveFileItem>)|(ids <DriveFileList>)|(ids:<DriveFileList>)
+    <DriveFileNameEntity> ::= (drivefilename <DriveFileName>)|(drivefilename:<DriveFileName>)|(anydrivefilename <DriveFileName>)|(anydrivefilename:<DriveFileName>)
+    <DriveFileQueryEntity> ::= (query <QueryDriveFile>)|(query:<QueryDriveFile>)
+    <DriveFileEntity> ::= <DriveFileIDEntity>|<DriveFileNameEntity>|<DriveFileQueryEntity>|root
+
+GAM 3.78.01
+
+Cleaned up processing of guardian invitation cancellations.
+
 GAM 3.78.00
 
 Note!!! Functionality change.

@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.78.01'
+__version__ = u'3.78.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -8991,22 +8991,30 @@ def cleanFileIDsList(fileIdSelection, fileIds):
 def initDriveFileEntity():
   return {u'fileIds': [], u'query': None, u'root': []}
 
-def getDriveFileEntity(anyowner=False):
+def getDriveFileEntity():
   fileIdSelection = initDriveFileEntity()
   myarg = getString(OB_DRIVE_FILE_ID, checkBlank=True)
   mycmd = myarg.lower()
   if mycmd == u'id':
     cleanFileIDsList(fileIdSelection, getStringReturnInList(OB_DRIVE_FILE_ID))
+  elif mycmd[:3] == u'id:':
+    cleanFileIDsList(fileIdSelection, [myarg[3:]])
   elif mycmd == u'ids':
     cleanFileIDsList(fileIdSelection, getString(OB_DRIVE_FILE_ID).replace(u',', u' ').split())
+  elif mycmd[:4] == u'ids:':
+    cleanFileIDsList(fileIdSelection, myarg[4:].replace(u',', u' ').split())
   elif mycmd == u'query':
     fileIdSelection[u'query'] = getString(OB_QUERY)
   elif mycmd[:6] == u'query:':
     fileIdSelection[u'query'] = myarg[6:]
   elif mycmd == u'drivefilename':
-    fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
+    fileIdSelection[u'query'] = ME_IN_OWNERS_AND+u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
   elif mycmd[:14] == u'drivefilename:':
-    fileIdSelection[u'query'] = [ME_IN_OWNERS_AND, u''][anyowner]+u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
+    fileIdSelection[u'query'] = ME_IN_OWNERS_AND+u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[14:])
+  elif mycmd == u'anydrivefilename':
+    fileIdSelection[u'query'] = u"{0} = '{1}'".format(DRIVE_FILE_NAME, getString(OB_DRIVE_FILE_NAME))
+  elif mycmd[:14] == u'anydrivefilename:':
+    fileIdSelection[u'query'] = u"{0} = '{1}'".format(DRIVE_FILE_NAME, myarg[17:])
   elif mycmd == u'root':
     cleanFileIDsList(fileIdSelection, [mycmd,])
   else:
@@ -9521,7 +9529,7 @@ def printDriveFileList(users):
       for parent in f_file.get(u'parents', []):
         if folderId == parent[u'id']:
           _printFileInfo(f_file)
-          if (maxdepth == -1 or depth < maxdepth) and f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
+          if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
             _printDriveFolderContents(f_file[u'id'], depth+1)
           break
 
@@ -9666,16 +9674,17 @@ def showDriveFilePath(users):
         break
 
 def showDriveFileTree(users):
-  def _printDriveFolderContents(feed, folderId, indent):
+  def _printDriveFolderContents(feed, folderId, depth):
     for f_file in feed:
       for parent in f_file[u'parents']:
         if folderId == parent[u'id']:
-          print u' ' * indent, convertUTF8(f_file[DRIVE_FILE_NAME])
-          if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER:
-            _printDriveFolderContents(feed, f_file[u'id'], indent+1)
+          print convertUTF8(u'  '*(depth+1)+f_file[DRIVE_FILE_NAME])
+          if f_file[u'mimeType'] == MIMETYPE_GA_FOLDER and (maxdepth == -1 or depth < maxdepth):
+            _printDriveFolderContents(feed, f_file[u'id'], depth+1)
           break
 
   anyowner = False
+  maxdepth = -1
   query = ME_IN_OWNERS
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
@@ -9685,7 +9694,9 @@ def showDriveFileTree(users):
     if myarg == u'anyowner':
       anyowner = True
     elif myarg == u'select':
-      fileIdSelection = getDriveFileEntity(True)
+      fileIdSelection = getDriveFileEntity()
+    elif myarg == u'depth':
+      maxdepth = getInteger(minVal=-1)
     elif myarg == u'orderby':
       fieldName = getChoice(DRIVEFILE_ORDERBY_CHOICES_MAP, mapChoice=True)
       if getChoice(SORTORDER_CHOICES_MAP, defaultChoice=None, mapChoice=True) != u'DESCENDING':
@@ -9728,7 +9739,7 @@ def showDriveFileTree(users):
                             throw_reasons=GAPI_DRIVE_THROW_REASONS+[GAPI_FILE_NOT_FOUND],
                             fileId=fileId, fields=DRIVE_FILE_NAME)
           print u'{0}: {1}{2}'.format(u'Drive File/Folder', result[DRIVE_FILE_NAME], currentCount(j, jcount))
-          _printDriveFolderContents(feed, fileId, 1)
+          _printDriveFolderContents(feed, fileId, 0)
         except GAPI_fileNotFound:
           print u'User: {0}, {1}: {2}, Does not exist{3}'.format(user, u'Drive File/Folder ID', fileId, currentCount(j, jcount))
         except (GAPI_serviceNotAvailable, GAPI_authError):
