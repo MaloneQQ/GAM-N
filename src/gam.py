@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.78.02'
+__version__ = u'3.78.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5346,6 +5346,8 @@ def doUpdateCrosDevice():
       up = UPDATE_CROS_ARGUMENT_TO_PROPERTY_MAP[myarg]
       if up == u'orgUnitPath':
         update_body[up] = getOrgUnitPath()
+      elif up == u'notes':
+        update_body[up] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
       else:
         update_body[up] = getString(OB_STRING, emptyOK=up != u'annotatedAssetId')
     elif myarg == u'action':
@@ -5482,6 +5484,8 @@ def doInfoCrosDevice():
     cros = callGAPI(cd.chromeosdevices(), u'get', customerId=GC_Values[GC_CUSTOMER_ID],
                     deviceId=deviceId, projection=projection, fields=fields)
     print u'CrOS Device: {0}{1}'.format(deviceId, currentCount(i, count))
+    if u'notes' in cros:
+      cros[u'notes'] = cros[u'notes'].replace(u'\n', u'\\n')
     for up in CROS_SCALAR_PROPERTY_PRINT_ORDER:
       if up in cros:
         print u'  {0}: {1}'.format(up, cros[up])
@@ -5599,7 +5603,10 @@ def doPrintCrosDevices():
   if feed:
     if (not noLists) and (not selectActiveTimeRanges) and (not selectRecentUsers):
       while feed:
-        addRowTitlesToCSVfile(flattenJSON(feed.popleft(), listLimit=listLimit), csvRows, titles)
+        cros = feed.popleft()
+        if u'notes' in cros:
+          cros[u'notes'] = cros[u'notes'].replace(u'\n', u'\\n')
+        addRowTitlesToCSVfile(flattenJSON(cros, listLimit=listLimit), csvRows, titles)
     else:
       if not noLists:
         if selectActiveTimeRanges:
@@ -5610,6 +5617,8 @@ def doPrintCrosDevices():
             titles.append(attrib)
       while feed:
         cros = feed.popleft()
+        if u'notes' in cros:
+          cros[u'notes'] = cros[u'notes'].replace(u'\n', u'\\n')
         row = {}
         for attrib in cros:
           if attrib in [u'kind', u'etag', u'recentUsers', u'activeTimeRanges']:
