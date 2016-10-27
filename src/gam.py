@@ -10534,8 +10534,9 @@ def deleteTokens(users):
 def printShowTokens(entityType, users, csvFormat):
   def _showToken(token, j, jcount):
     print u'  Client ID: %s%s' % (token[u'clientId'], currentCount(j, jcount))
-    for item in [u'displayText', u'anonymous', u'nativeApp', u'userKey']:
-      print convertUTF8(u'    %s: %s' % (item, token.get(item, u'')))
+    for item in token:
+      if item not in [u'clientId', u'scopes']:
+        print convertUTF8(u'    %s: %s' % (item, token.get(item, u'')))
     item = u'scopes'
     print u'    %s:' % item
     for it in token.get(item, []):
@@ -10589,8 +10590,9 @@ def printShowTokens(entityType, users, csvFormat):
           continue
         for token in results:
           row = {u'user': user, u'scopes': u' '.join(token.get(u'scopes', []))}
-          for item in [u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey']:
-            row[item] = token.get(item, u'')
+          for item in token:
+            if item not in [u'scopes']:
+              row[item] = token.get(item, u'')
           csvRows.append(row)
     except (GAPI_notFound, GAPI_userNotFound):
       pass
