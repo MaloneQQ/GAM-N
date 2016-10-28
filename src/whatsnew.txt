@@ -4,11 +4,15 @@ You must update the list of authorized scopes for your Gam OAuth2 Client and Ser
 - Log on to the admin console as in step 2.ii.
 - In the list of Authorized API clients, locate your Gam OAuth2 Client, copy the Client ID and then remove the entry.
 - Paste the Client ID into the Client name box as in step 2.iii.a, then do steps 2.iii.b thru 2.iii.d.
-You'll notice that the API Scopes - OAuth2 list has additional entries, these are what is required in Gam 3.73.
+You'll notice that the API Scopes - OAuth2 list has additional entries, these are what is required in Gam 3.9x.
 - Skip down to step 3.i.
 - In the list of Authorized API clients, locate your Gam Service Account, copy the Client ID and then remove the entry.
 - Paste the Client ID into the Client name box as in step 3.i.b, then do steps 3.i.c thru 3.i.e.
-You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.73.
+You'll notice that the API Scopes - Service Account list has additional entries, these are what is required in Gam 3.9x.
+
+GAM 3.90.00
+
+Update version.
 
 GAM 3.78.04
 
