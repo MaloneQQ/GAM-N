@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.90.00'
+__version__ = u'3.90.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3588,7 +3588,7 @@ OAUTH2_SCOPES = [
    u'offByDefault': True,
    u'subscopes': [],
    u'scopes': u'https://apps-apis.google.com/a/feeds/compliance/audit/'},
-  {u'name': u'Group Settings API',
+  {u'name': u'Groups Settings API',
    u'subscopes': [],
    u'scopes': u'https://www.googleapis.com/auth/apps.groups.settings'},
   {u'name': u'Calendar Data API',
@@ -3692,7 +3692,6 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
       oauth2_menu += u' (supports %s)' % (u' and '.join(a_scope[u'subscopes']))
     oauth2_menu += '\n'
   oauth2_menu += '''
-
      s)  Select all scopes
      u)  Unselect all scopes
      e)  Exit without changes
@@ -5820,7 +5819,10 @@ def getGroupAttrValue(argument, gs_body):
   if attrType == GC_TYPE_BOOLEAN:
     gs_body[attrName] = getBoolean()
   elif attrType == GC_TYPE_STRING:
-    gs_body[attrName] = getString(OB_STRING)
+    if attrName != u'customFooterText':
+      gs_body[attrName] = getString(OB_STRING, emptyOK=True)
+    else:
+      gs_body[attrName] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
   elif attrType == GC_TYPE_CHOICE:
     gs_body[attrName] = getChoice(attribute[u'choices'], mapChoice=True)
   elif attrType == GC_TYPE_EMAIL:
@@ -6046,11 +6048,13 @@ def doInfoGroup(group_name=None):
     for key, value in settings.items():
       if key in [u'kind', u'etag', u'description', u'email', u'name']:
         continue
-      elif key == u'maxMessageBytes':
+      if key == u'maxMessageBytes':
         if value > 1024*1024:
           value = u'%sM' % (value / 1024 / 1024)
         elif value > 1024:
           value = u'%sK' % (value / 1024)
+      elif key == u'customFooterText':
+        value = value.replace(u'\n', u'\\n')
       print u' %s: %s' % (key, value)
   except UnboundLocalError:
     pass
@@ -6848,22 +6852,23 @@ ORGANIZATION_ARGUMENT_TO_FIELD_MAP = {
   u'title': u'title',
   }
 
-def clearBodyList(body, itemName):
-  if itemName in body:
-    del body[itemName]
-  body.setdefault(itemName, None)
-
-def appendItemToBodyList(body, itemName, itemValue):
-  if (itemName in body) and (body[itemName] is None):
-    del body[itemName]
-  body.setdefault(itemName, [])
-  body[itemName].append(itemValue)
-
-def gen_sha512_hash(password):
-  from passlib.handlers.sha2_crypt import sha512_crypt
-  return sha512_crypt.encrypt(password, rounds=5000)
-
 def getUserAttributes(cd, updateCmd=False, noUid=False):
+  def clearBodyList(body, itemName):
+    if itemName in body:
+      del body[itemName]
+    body.setdefault(itemName, None)
+
+  def appendItemToBodyList(body, itemName, itemValue, checkBlankField=None):
+    if (itemName in body) and (body[itemName] is None):
+      del body[itemName]
+    body.setdefault(itemName, [])
+    if checkBlankField is None or itemValue[checkBlankField]:
+      body[itemName].append(itemValue)
+
+  def gen_sha512_hash(password):
+    from passlib.handlers.sha2_crypt import sha512_crypt
+    return sha512_crypt.encrypt(password, rounds=5000)
+
   def _splitSchemaNameDotFieldName(sn_fn, fnRequired=True):
     if sn_fn.find(u'.') != -1:
       schemaName, fieldName = sn_fn.split(u'.', 1)
@@ -6896,14 +6901,14 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
       up = UPDATE_USER_ARGUMENT_TO_PROPERTY_MAP[myarg]
       if up == u'givenName':
         body.setdefault(u'name', {})
-        body[u'name'][up] = getString(OB_STRING)
+        body[u'name'][up] = getString(OB_STRING, emptyOK=True)
       elif up == u'familyName':
         body.setdefault(u'name', {})
-        body[u'name'][up] = getString(OB_STRING)
+        body[u'name'][up] = getString(OB_STRING, emptyOK=True)
       elif up == u'password':
         need_password = False
         body[up] = getString(OB_STRING)
-        if body[u'password'].lower() == u'random':
+        if body[up].lower() == u'random':
           need_password = True
       elif up in USER_BOOLEAN_PROPERTIES:
         body[up] = getBoolean()
@@ -6920,150 +6925,154 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        address = {}
+        entry = {}
         getChoice([u'type',])
-        address[u'type'] = getChoice(ADDRESS_TYPES)
-        if address[u'type'] == u'custom':
-          address[u'customType'] = getString(OB_STRING)
+        entry[u'type'] = getChoice(ADDRESS_TYPES)
+        if entry[u'type'] == u'custom':
+          entry[u'customType'] = getString(OB_STRING)
         if checkArgumentPresent(UNSTRUCTURED_FORMATTED_ARGUMENT):
-          address[u'sourceIsStructured'] = False
-          address[u'formatted'] = getString(OB_STRING)
+          entry[u'sourceIsStructured'] = False
+          entry[u'formatted'] = getString(OB_STRING, emptyOK=True)
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ADDRESS_ARGUMENT_TO_FIELD_MAP:
-            address[ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING)
+            value = getString(OB_STRING, emptyOK=True)
+            if value:
+              entry[ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument == u'notprimary':
             break
           elif argument == u'primary':
-            address[u'primary'] = True
+            entry[u'primary'] = True
             break
           else:
             unknownArgumentExit()
-        appendItemToBodyList(body, up, address)
+        appendItemToBodyList(body, up, entry)
       elif up == u'ims':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        im = {}
+        entry = {}
         getChoice([u'type',])
-        im[u'type'] = getChoice(IM_TYPES)
-        if im[u'type'] == u'custom':
-          im[u'customType'] = getString(OB_STRING)
+        entry[u'type'] = getChoice(IM_TYPES)
+        if entry[u'type'] == u'custom':
+          entry[u'customType'] = getString(OB_STRING)
         getChoice([u'protocol',])
-        im[u'protocol'] = getChoice(IM_PROTOCOLS)
-        if im[u'protocol'] == u'custom_protocol':
-          im[u'customProtocol'] = getString(OB_STRING)
+        entry[u'protocol'] = getChoice(IM_PROTOCOLS)
+        if entry[u'protocol'] == u'custom_protocol':
+          entry[u'customProtocol'] = getString(OB_STRING)
         # Backwards compatability: notprimary|primary on either side of IM address
-        im[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
-        im[u'im'] = getString(OB_STRING)
-        im[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=im[u'primary'], mapChoice=True)
-        appendItemToBodyList(body, up, im)
+        entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
+        entry[u'im'] = getString(OB_STRING, emptyOK=True)
+        entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=entry[u'primary'], mapChoice=True)
+        appendItemToBodyList(body, up, entry, u'im')
       elif up == u'notes':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        note = {}
-        note[u'contentType'] = getChoice(NOTE_TYPES, defaultChoice=u'text_plain')
+        entry = {}
+        entry[u'contentType'] = getChoice(NOTE_TYPES, defaultChoice=u'text_plain')
         if checkArgumentPresent(FILE_ARGUMENT):
-          note[u'value'] = readFile(getString(OB_FILE_NAME), encoding=GM_Globals[GM_SYS_ENCODING])
+          entry[u'value'] = readFile(getString(OB_FILE_NAME), encoding=GM_Globals[GM_SYS_ENCODING])
         else:
-          note[u'value'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
-        body[up] = note
+          entry[u'value'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
+        body[up] = entry
       elif up == u'organizations':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        organization = {}
+        entry = {}
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument == u'type':
-            organization[u'type'] = getChoice(ORGANIZATION_TYPES)
+            entry[u'type'] = getChoice(ORGANIZATION_TYPES)
           elif argument == u'customtype':
-            organization[u'customType'] = getString(OB_STRING)
+            entry[u'customType'] = getString(OB_STRING)
           elif argument in ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
-            organization[ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = getString(OB_STRING)
+            value = getString(OB_STRING, emptyOK=True)
+            if value:
+              entry[ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument == u'notprimary':
             break
           elif argument == u'primary':
-            organization[u'primary'] = True
+            entry[u'primary'] = True
             break
           else:
             unknownArgumentExit()
-        appendItemToBodyList(body, up, organization)
+        appendItemToBodyList(body, up, entry)
       elif up == u'phones':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        phone = {}
+        entry = {}
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument == u'type':
-            phone[u'type'] = getChoice(PHONE_TYPES)
-            if phone[u'type'] == u'custom':
-              phone[u'customType'] = getString(OB_STRING)
+            entry[u'type'] = getChoice(PHONE_TYPES)
+            if entry[u'type'] == u'custom':
+              entry[u'customType'] = getString(OB_STRING)
           elif argument == u'value':
-            phone[u'value'] = getString(OB_STRING)
+            entry[u'value'] = getString(OB_STRING, emptyOK=True)
           elif argument == u'notprimary':
             break
           elif argument == u'primary':
-            phone[u'primary'] = True
+            entry[u'primary'] = True
             break
           else:
             unknownArgumentExit()
-        appendItemToBodyList(body, up, phone)
+        appendItemToBodyList(body, up, entry, u'value')
       elif up == u'relations':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        relation = {}
-        relation[u'type'] = getString(OB_STRING)
-        if relation[u'type'].lower() not in RELATION_TYPES:
-          relation[u'customType'] = relation[u'type']
-          relation[u'type'] = u'custom'
+        entry = {}
+        entry[u'type'] = getString(OB_STRING)
+        if entry[u'type'].lower() not in RELATION_TYPES:
+          entry[u'customType'] = entry[u'type']
+          entry[u'type'] = u'custom'
         else:
-          relation[u'type'] = relation[u'type'].lower()
-        relation[u'value'] = getString(OB_STRING)
-        appendItemToBodyList(body, up, relation)
+          entry[u'type'] = entry[u'type'].lower()
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        appendItemToBodyList(body, up, entry, u'value')
       elif up == u'emails':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        an_email = {}
-        an_email[u'type'] = getString(OB_STRING)
-        if an_email[u'type'].lower() not in OTHEREMAIL_TYPES:
-          an_email[u'customType'] = an_email[u'type']
-          an_email[u'type'] = u'custom'
+        entry = {}
+        entry[u'type'] = getString(OB_STRING)
+        if entry[u'type'].lower() not in OTHEREMAIL_TYPES:
+          entry[u'customType'] = entry[u'type']
+          entry[u'type'] = u'custom'
         else:
-          an_email[u'type'] = an_email[u'type'].lower()
-        an_email[u'address'] = getEmailAddress(noUid=True)
-        appendItemToBodyList(body, up, an_email)
+          entry[u'type'] = entry[u'type'].lower()
+        entry[u'address'] = getEmailAddress(noUid=True, emptyOK=True)
+        appendItemToBodyList(body, up, entry, u'address')
       elif up == u'externalIds':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        externalid = {}
-        externalid[u'type'] = getString(OB_STRING)
-        if externalid[u'type'].lower() not in EXTERNALID_TYPES:
-          externalid[u'customType'] = externalid[u'type']
-          externalid[u'type'] = u'custom'
+        entry = {}
+        entry[u'type'] = getString(OB_STRING)
+        if entry[u'type'].lower() not in EXTERNALID_TYPES:
+          entry[u'customType'] = entry[u'type']
+          entry[u'type'] = u'custom'
         else:
-          externalid[u'type'] = externalid[u'type'].lower()
-        externalid[u'value'] = getString(OB_STRING)
-        appendItemToBodyList(body, up, externalid)
+          entry[u'type'] = entry[u'type'].lower()
+        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        appendItemToBodyList(body, up, entry, u'value')
       elif up == u'websites':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
           clearBodyList(body, up)
           continue
-        website = {}
-        website[u'type'] = getString(OB_STRING)
-        if website[u'type'].lower() not in WEBSITE_TYPES:
-          website[u'customType'] = website[u'type']
-          website[u'type'] = u'custom'
+        entry = {}
+        entry[u'type'] = getString(OB_STRING)
+        if entry[u'type'].lower() not in WEBSITE_TYPES:
+          entry[u'customType'] = entry[u'type']
+          entry[u'type'] = u'custom'
         else:
-          website[u'type'] = website[u'type'].lower()
-        website[u'value'] = getString(OB_URL)
-        website[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
-        appendItemToBodyList(body, up, website)
+          entry[u'type'] = entry[u'type'].lower()
+        entry[u'value'] = getString(OB_URL, emptyOK=True)
+        entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
+        appendItemToBodyList(body, up, entry, u'value')
     elif myarg == u'clearschema':
       if not updateCmd:
         unknownArgumentExit()
@@ -11866,7 +11875,7 @@ def getSendAsAttributes(myarg, body, tagReplacements):
     matchReplacement = getString(OB_STRING, emptyOK=True)
     tagReplacements[matchTag] = matchReplacement
   elif myarg == u'name':
-    body[u'displayName'] = getString(OB_NAME)
+    body[u'displayName'] = getString(OB_NAME, emptyOK=True)
   elif myarg == u'replyto':
     body[u'replyToAddress'] = getEmailAddress(noUid=True)
   elif myarg == u'default':
