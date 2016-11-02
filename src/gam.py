@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.90.01'
+__version__ = u'3.90.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -3345,25 +3345,31 @@ def showJSON(object_name, object_value, skip_objects=None, level=0, spacing=u'')
   else:
     printJSONValue(object_value)
 
-def doVersion(checkForCheck=True):
-  import struct
-  print u'GAM {0} - {1}\n{2}\nPython {3}.{4}.{5} {6}-bit {7}\ngoogle-api-python-client {8}\n{9} {10}\nPath: {11}'.format(__version__, GAM_URL,
-                                                                                                                         __author__,
-                                                                                                                         sys.version_info[0], sys.version_info[1], sys.version_info[2],
-                                                                                                                         struct.calcsize(u'P')*8, sys.version_info[3],
-                                                                                                                         googleapiclient.__version__,
-                                                                                                                         platform.platform(), platform.machine(),
-                                                                                                                         GM_Globals[GM_GAM_PATH])
-  if checkForCheck:
+def doVersion(checkForArgs=True):
+  forceCheck = simple = False
+  if checkForArgs:
     while CL_argvI < CL_argvLen:
       myarg = getArgument()
       if myarg == u'check':
-        doGAMCheckForUpdates(forceCheck=True)
+        forceCheck = True
+      elif myarg == u'simple':
+        simple = True
       else:
         unknownArgumentExit()
+  if simple:
+    sys.stdout.write(__version__)
+    return
+  import struct
+  version_data = u'GAM {0} - {1}\n{2}\nPython {3}.{4}.{5} {6}-bit {7}\ngoogle-api-python-client {8}\n{9} {10}\nPath: {11}'
+  print version_data.format(__version__, GAM_URL, __author__, sys.version_info[0],
+                            sys.version_info[1], sys.version_info[2], struct.calcsize(u'P')*8,
+                            sys.version_info[3], googleapiclient.__version__, platform.platform(),
+                            platform.machine(), GM_Globals[GM_GAM_PATH])
+  if forceCheck:
+    doGAMCheckForUpdates(forceCheck=True)
 
 def showUsage():
-  doVersion(checkForCheck=False)
+  doVersion(checkForArgs=False)
   print u'''
 Usage: gam [OPTIONS]...
 

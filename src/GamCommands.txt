@@ -9,6 +9,7 @@ If an item contains spaces, it should be surrounded by " or '.
 | separates alternative items
 
 # Primatives
+<Character> ::= a single character
 <Digit> ::= 0|1|2|3|4|5|6|7|8|9
 <Number> ::= <Digit>+
 <Hex> ::= <Digit>|a|b|c|d|e|f|A|B|C|D|E|F
@@ -486,7 +487,8 @@ If an item contains spaces, it should be surrounded by " or '.
 	(website|websites clear|(home_page|blog|profile|work|home|other|ftp|reservations|app_install_page|<String> <URL> [notprimary|primary]))|
 	(<SchemaName>.<FieldName> [multivalued|multivalue|value [type work|home|other|(custom <String>)]] <String>)
 
-gam version
+gam version [check]
+
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
