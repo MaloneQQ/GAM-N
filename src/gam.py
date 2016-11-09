@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'3.90.02'
+__version__ = u'4.02.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -583,6 +583,7 @@ OB_EMAIL_ADDRESS_ENTITY = u'EmailAddressEntity'
 OB_EMAIL_ADDRESS_OR_UID = u'EmailAaddress|UniqueID'
 OB_ENTITY = u'Entity'
 OB_ENTITY_TYPE = u'EntityType'
+OB_EVENT_ID = u'EventID'
 OB_FIELD_NAME = u'FieldName'
 OB_FIELD_NAME_LIST = "FieldNameList"
 OB_FILE_NAME = u'FileName'
@@ -2841,10 +2842,10 @@ def getSvcAcctAPIversionHttpService(api):
   except (ValueError, KeyError):
     invalidJSONExit(disc_file)
 
-def buildGAPIServiceObject(api, act_as):
+def buildGAPIServiceObject(api, act_as, use_scopes=None):
   _, http, service = getSvcAcctAPIversionHttpService(api)
   GM_Globals[GM_CURRENT_API_USER] = act_as
-  GM_Globals[GM_CURRENT_API_SCOPES] = API_SCOPE_MAPPING[api]
+  GM_Globals[GM_CURRENT_API_SCOPES] = use_scopes or API_SCOPE_MAPPING[api]
   credentials = getSvcAcctCredentials(GM_Globals[GM_CURRENT_API_SCOPES], act_as)
   try:
     service._http = credentials.authorize(http)
@@ -3655,7 +3656,7 @@ OAUTH2_SCOPES = [
 OAUTH2_CMDS = [u's', u'u', u'e', u'c']
 MAXIMUM_SCOPES = 28
 
-def doOAuthRequest():
+def doOAuthRequest(login_hint=None):
   def _checkMakeScopesList(scopes):
     del scopes[:]
     for i in range(num_scopes):
@@ -3686,7 +3687,19 @@ See this site for instructions:
 
 """.format(FN_CLIENT_SECRETS_JSON, GC_Values[GC_CLIENT_SECRETS_JSON], GAM_WIKI_CREATE_CLIENT_SECRETS)
 
+  cs_data = readFile(GC_Values[GC_CLIENT_SECRETS_JSON], mode=u'rb', continueOnError=True, displayError=True, encoding=None)
+  if not cs_data:
+    systemErrorExit(14, MISSING_CLIENT_SECRETS_MESSAGE)
+  try:
+    cs_json = json.loads(cs_data)
+    client_id = cs_json[u'installed'][u'client_id']
+    client_secret = cs_json[u'installed'][u'client_secret']
+  except (ValueError, IndexError, KeyError):
+    print u'ERROR: the format of your client secrets file:\n\n%s\n\n is incorrect. Please recreate the file.'
+    sys.exit(3)
+
   checkForExtraneousArguments()
+  login_hint = getValidateLoginHint(login_hint)
   oauth2_menu = u'''
 Select the authorized scopes by entering a number.
 Append an 'r' to grant read-only access or an 'a' to grant action-only access.
@@ -3703,6 +3716,7 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
      e)  Exit without changes
      c)  Continue to authorization
 '''
+
   num_scopes = len(OAUTH2_SCOPES)
   menu = oauth2_menu % tuple(range(num_scopes))
   selected_scopes = []
@@ -3764,19 +3778,16 @@ Append an 'r' to grant read-only access or an 'a' to grant action-only access.
       status, message = _checkMakeScopesList(scopes)
       if status:
         break
-  try:
-    FLOW = oauth2client.client.flow_from_clientsecrets(GC_Values[GC_CLIENT_SECRETS_JSON], scope=scopes)
-  except oauth2client.client.clientsecrets.InvalidClientSecretsError:
-    systemErrorExit(14, MISSING_CLIENT_SECRETS_MESSAGE)
+  flow = oauth2client.client.OAuth2WebServerFlow(client_id=client_id,
+                                                 client_secret=client_secret, scope=scopes, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
+                                                 user_agent=GAM_INFO, access_type=u'offline', response_type=u'code', login_hint=login_hint)
   storage = oauth2client.file.Storage(GC_Values[GC_OAUTH2_TXT])
-  credentials = storage.get()
   flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
-  if credentials is None or credentials.invalid:
-    http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-    try:
-      credentials = oauth2client.tools.run_flow(flow=FLOW, storage=storage, flags=flags, http=http)
-    except httplib2.CertificateValidationUnsupported:
-      noPythonSSLExit()
+  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+  try:
+    oauth2client.tools.run_flow(flow=flow, storage=storage, flags=flags, http=http)
+  except httplib2.CertificateValidationUnsupported:
+    noPythonSSLExit()
 
 def doOAuthDelete():
   checkForExtraneousArguments()
@@ -3864,6 +3875,46 @@ def doWhatIs():
     sys.stderr.write(u'%s is a group alias\n\n' % email)
     if show_info:
       doInfoAlias(alias_email=email)
+
+def doCheckServiceAccount(users):
+  all_scopes = []
+  for _, scopes in API_SCOPE_MAPPING.items():
+    for scope in scopes:
+      if scope not in all_scopes:
+        all_scopes.append(scope)
+  all_scopes.sort()
+  for user in users:
+    all_scopes_pass = True
+    print u'User: %s' % (user)
+    for scope in all_scopes:
+      try:
+        credentials = getSvcAcctCredentials(scope, user)
+        credentials.refresh(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL]))
+        result = u'PASS'
+      except httplib2.ServerNotFoundError as e:
+        systemErrorExit(4, e)
+      except oauth2client.client.HttpAccessTokenRefreshError:
+        result = u'FAIL'
+        all_scopes_pass = False
+      print u' Scope: {0:60} {1}'.format(scope, result)
+    service_account = credentials.serialization_data[u'client_id']
+    if all_scopes_pass:
+      print u'\nAll scopes passed!\nService account %s is fully authorized.' % service_account
+    else:
+      _, user_domain = splitEmailAddress(user)
+      print u'''
+ERROR: Some scopes failed! Please go to:
+
+https://admin.google.com/%s/AdminHome?#OGX:ManageOauthClients
+
+and grant Client name:
+
+%s
+
+Access to scopes:
+
+%s\n''' % (user_domain, service_account, ',\n'.join(all_scopes))
+    sys.exit(int(not all_scopes_pass))
 
 REPORT_CUSTOMER = u'customer'
 REPORT_USER = u'user'
@@ -5290,6 +5341,37 @@ def doCalendarAddEvent(cal, calendarId):
         pass
   callGAPI(cal.events(), u'insert', calendarId=calendarId, sendNotifications=sendNotifications, body=body)
 
+def doCalendarDeleteEvent(cal, calendarId):
+  calendarId, cal = buildCalendarGAPIObject(calendarId)
+  if not cal:
+    return
+  events = []
+  sendNotifications = None
+  doIt = False
+  while CL_argvI < CL_argvLen:
+    myarg = getArgument()
+    if myarg == u'notifyattendees':
+      sendNotifications = True
+    elif myarg in [u'id', u'eventid']:
+      events.append(getString(OB_EVENT_ID))
+    elif myarg in [u'q', u'query', u'eventquery']:
+      query = getString(OB_QUERY)
+      result = callGAPIpages(cal.events(), u'list', items=u'items', calendarId=calendarId, q=query)
+      for event in result:
+        if u'id' in event and event[u'id'] not in events:
+          events.append(event[u'id'])
+    elif myarg == u'doit':
+      doIt = True
+    else:
+      unknownArgumentExit()
+  if doIt:
+    for eventId in events:
+      print u' deleting eventId %s' % eventId
+      callGAPI(cal.events(), u'delete', calendarId=calendarId, eventId=eventId, sendNotifications=sendNotifications)
+  else:
+    for eventId in events:
+      print u' would delete eventId %s. Add doit to command to actually delete event' % eventId
+
 def doCalendarWipeEvents(cal, calendarId):
   checkForExtraneousArguments()
   calendarId, cal = buildCalendarGAPIObject(calendarId)
@@ -6643,6 +6725,204 @@ def doPrintResourceCalendars():
     csvRows.append(row)
   writeCSVfile(csvRows, titles, u'Resources', todrive)
 
+def doDelProjects():
+  # Leave undocumented. Most users should never need.
+  # Deletes all projects with ID gam-project-*
+  try:
+    login_hint = sys.argv[3]
+  except IndexError:
+    while True:
+      login_hint = raw_input(u'\nWhat is your G Suite admin email address? ')
+      if login_hint.find(u'@') == -1:
+        print u'Error: that is not a valid email address'
+      else:
+        break
+  from oauth2client.contrib.dictionary_storage import DictionaryStorage
+  project_id = u'gam-project'
+  for i in range(3):
+    project_id += u'-%s' % ''.join(random.choice(string.digits + string.ascii_lowercase) for i in range(3))
+  project_name = u'project:%s' % project_id
+  scope = u'https://www.googleapis.com/auth/cloud-platform'
+  client_id = u'297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com'
+  client_secret = u'qM3dP8f_4qedwzWQE1VR4zzU'
+  flow = oauth2client.client.OAuth2WebServerFlow(client_id=client_id,
+                                                 client_secret=client_secret, scope=scope, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
+                                                 user_agent=GAM_INFO, access_type=u'online', response_type=u'code', login_hint=login_hint)
+  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
+  storage_dict = {}
+  storage = DictionaryStorage(storage_dict, u'credentials')
+  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
+  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+  try:
+    credentials = oauth2client.tools.run_flow(flow=flow, storage=storage, flags=flags, http=http)
+  except httplib2.CertificateValidationUnsupported:
+    noPythonSSLExit()
+  credentials.user_agent = GAM_INFO
+  http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
+                                             cache=GC_Values[GC_CACHE_DIR]))
+  crm = googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False)
+  projects = callGAPIpages(crm.projects(), u'list', items=u'projects')
+  for project in projects:
+    pid = project[u'projectId']
+    if pid.startswith(u'gam-project-'):
+      print u'Deleting %s...' % pid
+      try:
+        result = callGAPI(crm.projects(), u'delete', projectId=pid, throw_reasons=[u'forbidden'])
+      except googleapiclient.errors.HttpError:
+        pass
+
+def getValidateLoginHint(login_hint):
+  def validEmailAddr(addr):
+    loc = addr.find(u'@')
+    return loc > 0 and loc < len(addr)-1
+
+  if login_hint:
+    login_hint = login_hint.strip()
+    if validEmailAddr(login_hint):
+      return login_hint
+  while True:
+    login_hint = raw_input(u'\nWhat is your G Suite admin email address? ').strip()
+    if validEmailAddr(login_hint):
+      return login_hint
+    print u'Error: that is not a valid email address'
+
+def doCreateProject(login_hint=None):
+  from oauth2client.contrib.dictionary_storage import DictionaryStorage
+  checkForExtraneousArguments()
+  login_hint = getValidateLoginHint(login_hint)
+  project_id = u'gam-project'
+  for i in range(3):
+    project_id += u'-%s' % ''.join(random.choice(string.digits + string.ascii_lowercase) for i in range(3))
+  project_name = u'project:%s' % project_id
+  scope = u'https://www.googleapis.com/auth/cloud-platform'
+  client_id = u'297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com'
+  client_secret = u'qM3dP8f_4qedwzWQE1VR4zzU'
+  flow = oauth2client.client.OAuth2WebServerFlow(client_id=client_id,
+                                                 client_secret=client_secret, scope=scope, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
+                                                 user_agent=GAM_INFO, access_type=u'online', response_type=u'code', login_hint=login_hint)
+  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
+  storage_dict = {}
+  storage = DictionaryStorage(storage_dict, u'credentials')
+  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
+  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
+  try:
+    credentials = oauth2client.tools.run_flow(flow=flow, storage=storage, flags=flags, http=http)
+  except httplib2.CertificateValidationUnsupported:
+    noPythonSSLExit()
+  credentials.user_agent = GAM_INFO
+  http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
+                                             cache=GC_Values[GC_CACHE_DIR]))
+  crm = googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False)
+  body = {u'projectId': project_id, u'name': u'GAM Project'}
+  while True:
+    create_again = False
+    print u'Creating project "%s"...' % body[u'name']
+    create_operation = callGAPI(crm.projects(), u'create', body=body)
+    operation_name = create_operation[u'name']
+    time.sleep(5) # Google recommends always waiting at least 5 seconds
+    for i in range(1, 5):
+      print u'Checking project status...'
+      status = callGAPI(crm.operations(), u'get', name=operation_name)
+      if u'error' in status:
+        if u'message' in status[u'error'] and status[u'error'][u'message'].find(u'Callers must accept ToS') != -1:
+          print u'''Please go to:
+
+https://console.developers.google.com
+
+and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup, you can return here and press enter.'''
+          raw_input()
+          create_again = True
+          break
+        else:
+          print status
+          sys.exit(1)
+      if u'done' in status and status[u'done']:
+        break
+      sleep_time = i ** 2
+      print u'Project still being created. Sleeping %s seconds' % sleep_time
+      time.sleep(sleep_time)
+    if create_again:
+      continue
+    if not u'done' in status or not status[u'done']:
+      print u'Failed to create project: %s' % status
+      sys.exit(1)
+    elif u'error' in status:
+      print status[u'error']
+      sys.exit(2)
+    break
+
+  serveman = googleapiclient.discovery.build(u'servicemanagement', u'v1', http=http, cache_discovery=False)
+  apis = [u'admin-json.googleapis.com', u'appsactivity-json.googleapis.com', u'calendar-json.googleapis.com',
+          u'classroom.googleapis.com', u'drive', u'gmail-json.googleapis.com', u'groupssettings-json.googleapis.com',
+          u'licensing-json.googleapis.com', u'plus-json.googleapis.com', u'contacts-json.googleapis.com']
+  for api in apis:
+    while True:
+      print u' enabling API %s...' % api
+      try:
+        enable_operation = callGAPI(serveman.services(), u'enable', throw_reasons=[u'failedPrecondition'],
+                                    serviceName=api, body={u'consumerId': project_name})
+        break
+      except googleapiclient.errors.HttpError, e:
+        print u'\nThere was an error enabling %s. Please resolve error as described below:' % api
+        print
+        print u'\n%s\n' % e
+        print
+        raw_input(u'Press enter once resolved and we will try enabling the API again.')
+  iam = googleapiclient.discovery.build(u'iam', u'v1', http=http, cache_discovery=False)
+  print u'Creating Service Account'
+  service_account = callGAPI(iam.projects().serviceAccounts(), u'create', name=u'projects/%s' % project_id,
+                             body={u'accountId': project_id, u'serviceAccount': {u'displayName': u'GAM Project'}})
+  body = {u'privateKeyType': u'TYPE_GOOGLE_CREDENTIALS_FILE', u'keyAlgorithm': u'KEY_ALG_RSA_4096'}
+  key = callGAPI(iam.projects().serviceAccounts().keys(), u'create', name=service_account[u'name'], body=body)
+  oauth2service_data = base64.b64decode(key[u'privateKeyData'])
+  service_account_file = GC_Values[GC_OAUTH2SERVICE_JSON]
+  if os.path.isfile(service_account_file):
+    service_account_file = u'%s-%s' % (service_account_file, project_id)
+  writeFile(service_account_file, oauth2service_data, continueOnError=False)
+  console_credentials_url = u'https://console.developers.google.com/apis/credentials?project=%s' % project_id
+  print u'''Please go to:
+
+%s
+
+1. Click the blue "Create credentials" button. Choose "OAuth client ID".
+2. Click the blue "Configure consent screen" button. Enter "GAM" for "Product name to show to users".
+3. Leave other fields blank. Click "Save" button.
+3. Choose "Other" and click the blue "Create" button.
+4. Copy your "client ID" value.
+
+''' % console_credentials_url
+  client_id = raw_input(u'Enter your Client ID: ')
+  print u'\nNow go back to your browser and copy your client secret.'
+  client_secret = raw_input(u'Enter your Client Secret: ')
+  cs_data = u'''{
+    "installed": {
+        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "client_id": "%s",
+        "client_secret": "%s",
+        "project_id": "%s",
+        "redirect_uris": [
+            "urn:ietf:wg:oauth:2.0:oob",
+            "http://localhost"
+        ],
+        "token_uri": "https://accounts.google.com/o/oauth2/token"
+    }
+}''' % (client_id, client_secret, project_id)
+  client_secrets_file = GC_Values[GC_CLIENT_SECRETS_JSON]
+  if os.path.isfile(client_secrets_file):
+    client_secrets_file = u'%s-%s' % (client_secrets_file, project_id)
+  writeFile(client_secrets_file, cs_data, continueOnError=False)
+  print u'''Almost there! Now please switch back to your browser and:
+
+1. Click OK to close "OAuth client" popup if it's still open.
+2. Click "Manage service accounts" on the right of the screen.
+3. Click the 3 dots to the right of your service account.
+4. Choose Edit.
+5. Check the "Enable G Suite Domain-wide Delegation" box and click Save.
+'''
+  raw_input(u'Press Enter when done...')
+  print u'That\'s it! Your GAM Project is created and ready to use.'
+
 def _showSchema(schema):
   print u'Schema: %s' % schema[u'schemaName']
   for a_key in schema:
@@ -6938,7 +7218,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           entry[u'customType'] = getString(OB_STRING)
         if checkArgumentPresent(UNSTRUCTURED_FORMATTED_ARGUMENT):
           entry[u'sourceIsStructured'] = False
-          entry[u'formatted'] = getString(OB_STRING, emptyOK=True)
+          entry[u'formatted'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ADDRESS_ARGUMENT_TO_FIELD_MAP:
@@ -7326,7 +7606,10 @@ def doInfoUser(user_email=None):
     print u'Addresses:'
     for address in user[u'addresses']:
       for key in address:
-        print convertUTF8(u' %s: %s' % (key, address[key]))
+        if key != u'formatted':
+          print convertUTF8(u' %s: %s' % (key, address[key]))
+        else:
+          print convertUTF8(u' %s: %s' % (key, address[key].replace(u'\n', u'\\n')))
       print u''
   if u'organizations' in user:
     print u'Organizations:'
@@ -12289,6 +12572,8 @@ def ProcessGAMCommand(args):
         doCreateAdmin()
       elif argument in [u'guardianinvite', u'inviteguardian', u'guardian']:
         doInviteGuardian()
+      elif argument in [u'project', u'apiproject']:
+        doCreateProject(getEmailAddress(noUid=True, optional=True))
       else:
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
@@ -12403,6 +12688,8 @@ def ProcessGAMCommand(args):
         doDeleteAdmin()
       elif argument in [u'guardian', u'guardians']:
         doDeleteGuardian()
+      elif argument in [u'project', u'projects']:
+        doDelProjects()
       else:
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
@@ -12517,7 +12804,7 @@ def ProcessGAMCommand(args):
     if command in [u'oauth', u'oauth2']:
       argument = getArgument()
       if argument in [u'request', u'create']:
-        doOAuthRequest()
+        doOAuthRequest(getEmailAddress(noUid=True, optional=True))
       elif argument in [u'info', u'verify']:
         doOAuthInfo()
       elif argument in [u'delete', u'revoke']:
@@ -12541,6 +12828,8 @@ def ProcessGAMCommand(args):
         doCalendarWipeEvents(cal, calendarId)
       elif argument == u'addevent':
         doCalendarAddEvent(cal, calendarId)
+      elif argument == u'deleteevent':
+        doCalendarDeleteEvent(cal, calendarId)
       else:
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
@@ -12826,6 +13115,12 @@ def ProcessGAMCommand(args):
         infoForwardingAddresses(users)
       elif infoWhat == u'sendas':
         infoSendAs(users)
+      else:
+        unknownArgumentExit()
+    elif command == u'check':
+      checkWhat = sys.argv[4].replace(u'_', '').lower()
+      if checkWhat == u'serviceaccount':
+        doCheckServiceAccount(users)
       else:
         unknownArgumentExit()
     elif command == u'profile':

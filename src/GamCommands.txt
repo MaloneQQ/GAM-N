@@ -116,6 +116,7 @@ If an item contains spaces, it should be surrounded by " or '.
 <PrintJobStatus> ::= done|error|held|in_progress|queued|submitted
 <PropertyKey> ::= <String>
 <PropertyValue> ::= <String>
+<QueryCalendar> ::= <String>
 <QueryContact> ::= <String> See: https://developers.google.com/google-apps/contacts/v3/reference#contacts-query-parameters-reference
 <QueryCrOS> ::= <String> See: https://support.google.com/chrome/a/answer/1698333?hl=en
 <QueryDriveFile> :: = <String> See: https://developers.google.com/drive/v2/web/search-parameters 
@@ -501,9 +502,11 @@ gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <F
 # Example: gam csv Users.csv gam update user '~primaryEmail' address type work unstructured '~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~' primary note text_plain '~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~'
 # Each user (~primaryEmail, e.g. foo@bar.com) would have their work address updated and a note that shows their email address as foo AT bar.com
 
-gam oauth|oauth2 create|request
+gam oauth|oauth2 create|request [<EmailAddress>]
 gam oauth|oauth2 delete|revoke
 gam oauth|oauth2 info|verify [<AccessToken>]
+
+gam <UserTypeEntity> check serviceaccount
 
 gam whatis <EmailItem> [noinfo]
 
@@ -583,10 +586,11 @@ gam calendar <CalendarItem> del|delete <CalendarACLRole> <EmailAddress>|(domain 
 gam calendar <CalendarItem> showacl
 
 gam calendar <CalendarItem> addevent <EventAttributes>+
+gam calendar <CalendarItem> deleteevent (id|eventid <EventID>)* (q|query|eventquery <QueryCalendar>)* [doit] [notifyattendees]
 gam calendar <CalendarItem> wipe
 
-gam update cros <CrOSList> (<CrOSAttributes>+)|(action deprovision_same_model_replace|deprovision_different_model_replace|deprovision_retiring_device|disable|reenable [acknowledge_device_touch_requirement])
-gam info cros <CrOSList> [nolists] [listlimit <Number>]
+gam update cros <CrOSItem>|<CrOSList> (<CrOSAttributes>+)|(action deprovision_same_model_replace|deprovision_different_model_replace|deprovision_retiring_device|disable|reenable [acknowledge_device_touch_requirement])
+gam info cros <CrOSItem>|<CrOSList> [nolists] [listlimit <Number>]
 	[basic|full|allfields] <CrOSFieldName>* [fields <CrOSFieldNameList>]
 
 gam print cros [todrive] [query <QueryCrOS>]
