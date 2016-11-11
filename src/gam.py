@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.02.00'
+__version__ = u'4.03.00'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6771,18 +6771,16 @@ def doDelProjects():
       except googleapiclient.errors.HttpError:
         pass
 
-def getValidateLoginHint(login_hint):
-  def validEmailAddr(addr):
-    loc = addr.find(u'@')
-    return loc > 0 and loc < len(addr)-1
+VALIDEMAIL_PATTERN = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
 
+def getValidateLoginHint(login_hint):
   if login_hint:
     login_hint = login_hint.strip()
-    if validEmailAddr(login_hint):
+    if VALIDEMAIL_PATTERN.match(login_hint):
       return login_hint
   while True:
     login_hint = raw_input(u'\nWhat is your G Suite admin email address? ').strip()
-    if validEmailAddr(login_hint):
+    if VALIDEMAIL_PATTERN.match(login_hint):
       return login_hint
     print u'Error: that is not a valid email address'
 
