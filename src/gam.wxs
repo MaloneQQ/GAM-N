@@ -2,7 +2,7 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" >
   <Product
       Id="*"
-      Name="GAM"
+      Name="GAM-N"
       Language="1033"
       Version="$(env.GAMVERSION)"
       Manufacturer="Ross Scroggs - ross.scroggs@gmail.com"
@@ -22,7 +22,7 @@
 
     <Feature
         Id="gam"
-        Title="GAM"
+        Title="GAM-N"
         Level="1">
       <ComponentGroupRef Id="ProductComponents" />
     </Feature>
@@ -55,8 +55,8 @@
       <Component Id="gam_setup_bat" Guid="ef01f93a-4b50-488a-9c04-ec5e13e66218">
         <File Name="gam-setup.bat" KeyPath="yes" />
       </Component>
-      <Component Id="gamcommands_txt" Guid="58ff9c45-a7c9-4e22-8845-a9a92610c1f3">
-        <File Name="gamcommands.txt" KeyPath="yes" />
+      <Component Id="GamCommands_txt" Guid="58ff9c45-a7c9-4e22-8845-a9a92610c1f3">
+        <File Name="GamCommands.txt" KeyPath="yes" />
       </Component>
     </ComponentGroup>
   </Fragment>
