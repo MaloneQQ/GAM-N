@@ -502,6 +502,8 @@ gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <F
 # Example: gam csv Users.csv gam update user '~primaryEmail' address type work unstructured '~~Street~~, ~~City~~, ~~State~~ ~~ZIP~~' primary note text_plain '~~primaryEmail~!~^(.+)@(.+)$~!~\1 AT \2~~'
 # Each user (~primaryEmail, e.g. foo@bar.com) would have their work address updated and a note that shows their email address as foo AT bar.com
 
+gam create project [<EmailAddress>]
+
 gam oauth|oauth2 create|request [<EmailAddress>]
 gam oauth|oauth2 delete|revoke
 gam oauth|oauth2 info|verify [<AccessToken>]

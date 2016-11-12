@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.00'
+__version__ = u'4.03.01'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6725,52 +6725,6 @@ def doPrintResourceCalendars():
     csvRows.append(row)
   writeCSVfile(csvRows, titles, u'Resources', todrive)
 
-def doDelProjects():
-  # Leave undocumented. Most users should never need.
-  # Deletes all projects with ID gam-project-*
-  try:
-    login_hint = sys.argv[3]
-  except IndexError:
-    while True:
-      login_hint = raw_input(u'\nWhat is your G Suite admin email address? ')
-      if login_hint.find(u'@') == -1:
-        print u'Error: that is not a valid email address'
-      else:
-        break
-  from oauth2client.contrib.dictionary_storage import DictionaryStorage
-  project_id = u'gam-project'
-  for i in range(3):
-    project_id += u'-%s' % ''.join(random.choice(string.digits + string.ascii_lowercase) for i in range(3))
-  project_name = u'project:%s' % project_id
-  scope = u'https://www.googleapis.com/auth/cloud-platform'
-  client_id = u'297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com'
-  client_secret = u'qM3dP8f_4qedwzWQE1VR4zzU'
-  flow = oauth2client.client.OAuth2WebServerFlow(client_id=client_id,
-                                                 client_secret=client_secret, scope=scope, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
-                                                 user_agent=GAM_INFO, access_type=u'online', response_type=u'code', login_hint=login_hint)
-  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
-  storage_dict = {}
-  storage = DictionaryStorage(storage_dict, u'credentials')
-  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
-  http = httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL])
-  try:
-    credentials = oauth2client.tools.run_flow(flow=flow, storage=storage, flags=flags, http=http)
-  except httplib2.CertificateValidationUnsupported:
-    noPythonSSLExit()
-  credentials.user_agent = GAM_INFO
-  http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
-                                             cache=GC_Values[GC_CACHE_DIR]))
-  crm = googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False)
-  projects = callGAPIpages(crm.projects(), u'list', items=u'projects')
-  for project in projects:
-    pid = project[u'projectId']
-    if pid.startswith(u'gam-project-'):
-      print u'Deleting %s...' % pid
-      try:
-        result = callGAPI(crm.projects(), u'delete', projectId=pid, throw_reasons=[u'forbidden'])
-      except googleapiclient.errors.HttpError:
-        pass
-
 VALIDEMAIL_PATTERN = re.compile(r'^[^@]+@[^@]+\.[^@]+$')
 
 def getValidateLoginHint(login_hint):
@@ -6784,21 +6738,15 @@ def getValidateLoginHint(login_hint):
       return login_hint
     print u'Error: that is not a valid email address'
 
-def doCreateProject(login_hint=None):
+def getCRMService(login_hint):
   from oauth2client.contrib.dictionary_storage import DictionaryStorage
-  checkForExtraneousArguments()
   login_hint = getValidateLoginHint(login_hint)
-  project_id = u'gam-project'
-  for i in range(3):
-    project_id += u'-%s' % ''.join(random.choice(string.digits + string.ascii_lowercase) for i in range(3))
-  project_name = u'project:%s' % project_id
   scope = u'https://www.googleapis.com/auth/cloud-platform'
   client_id = u'297408095146-fug707qsjv4ikron0hugpevbrjhkmsk7.apps.googleusercontent.com'
   client_secret = u'qM3dP8f_4qedwzWQE1VR4zzU'
   flow = oauth2client.client.OAuth2WebServerFlow(client_id=client_id,
                                                  client_secret=client_secret, scope=scope, redirect_uri=oauth2client.client.OOB_CALLBACK_URN,
                                                  user_agent=GAM_INFO, access_type=u'online', response_type=u'code', login_hint=login_hint)
-  flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
   storage_dict = {}
   storage = DictionaryStorage(storage_dict, u'credentials')
   flags = cmd_flags(noLocalWebserver=GC_Values[GC_NO_BROWSER])
@@ -6810,7 +6758,16 @@ def doCreateProject(login_hint=None):
   credentials.user_agent = GAM_INFO
   http = credentials.authorize(httplib2.Http(disable_ssl_certificate_validation=GC_Values[GC_NO_VERIFY_SSL],
                                              cache=GC_Values[GC_CACHE_DIR]))
-  crm = googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False)
+  return (googleapiclient.discovery.build(u'cloudresourcemanager', u'v1', http=http, cache_discovery=False), http)
+
+def doCreateProject():
+  login_hint = getEmailAddress(noUid=True, optional=True)
+  checkForExtraneousArguments()
+  crm, http = getCRMService(login_hint)
+  project_id = u'gam-project'
+  for i in range(3):
+    project_id += u'-%s' % ''.join(random.choice(string.digits + string.ascii_lowercase) for i in range(3))
+  project_name = u'project:%s' % project_id
   body = {u'projectId': project_id, u'name': u'GAM Project'}
   while True:
     create_again = False
@@ -6850,17 +6807,19 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
     break
 
   serveman = googleapiclient.discovery.build(u'servicemanagement', u'v1', http=http, cache_discovery=False)
-  apis = [u'admin-json.googleapis.com', u'appsactivity-json.googleapis.com', u'calendar-json.googleapis.com',
-          u'classroom.googleapis.com', u'drive', u'gmail-json.googleapis.com', u'groupssettings-json.googleapis.com',
-          u'licensing-json.googleapis.com', u'plus-json.googleapis.com', u'contacts-json.googleapis.com']
+  apis = [u'admin-json.googleapis.com', u'appsactivity-json.googleapis.com', u'audit-json.googleapis.com'
+          u'calendar-json.googleapis.com', u'classroom.googleapis.com', u'contacts-json.googleapis.com',
+          u'drive', u'gmail-json.googleapis.com', u'groupssettings-json.googleapis.com',
+          u'licensing-json.googleapis.com', u'plus-json.googleapis.com', u'siteverification-json.googleapis.com']
   for api in apis:
     while True:
       print u' enabling API %s...' % api
       try:
-        enable_operation = callGAPI(serveman.services(), u'enable', throw_reasons=[u'failedPrecondition'],
-                                    serviceName=api, body={u'consumerId': project_name})
+        callGAPI(serveman.services(), u'enable',
+                 throw_reasons=[GAPI_FAILED_PRECONDITION],
+                 serviceName=api, body={u'consumerId': project_name})
         break
-      except googleapiclient.errors.HttpError, e:
+      except GAPI_failedPrecondition as e:
         print u'\nThere was an error enabling %s. Please resolve error as described below:' % api
         print
         print u'\n%s\n' % e
@@ -6920,6 +6879,24 @@ and accept the Terms of Service (ToS). As soon as you've accepted the ToS popup,
 '''
   raw_input(u'Press Enter when done...')
   print u'That\'s it! Your GAM Project is created and ready to use.'
+
+def doDeleteProjects():
+  # Leave undocumented. Most users should never need.
+  # Deletes all projects with ID gam-project-*
+  login_hint = getEmailAddress(noUid=True, optional=True)
+  checkForExtraneousArguments()
+  crm, _ = getCRMService(login_hint)
+  projects = callGAPIpages(crm.projects(), u'list', items=u'projects')
+  for project in projects:
+    pid = project[u'projectId']
+    if pid.startswith(u'gam-project-'):
+      print u'Deleting %s...' % pid
+      try:
+        callGAPI(crm.projects(), u'delete',
+                 throw_reasons=[GAPI_FORBIDDEN],
+                 projectId=pid)
+      except GAPI_forbidden:
+        pass
 
 def _showSchema(schema):
   print u'Schema: %s' % schema[u'schemaName']
@@ -12571,7 +12548,7 @@ def ProcessGAMCommand(args):
       elif argument in [u'guardianinvite', u'inviteguardian', u'guardian']:
         doInviteGuardian()
       elif argument in [u'project', u'apiproject']:
-        doCreateProject(getEmailAddress(noUid=True, optional=True))
+        doCreateProject()
       else:
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
@@ -12687,7 +12664,7 @@ def ProcessGAMCommand(args):
       elif argument in [u'guardian', u'guardians']:
         doDeleteGuardian()
       elif argument in [u'project', u'projects']:
-        doDelProjects()
+        doDeleteProjects()
       else:
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
