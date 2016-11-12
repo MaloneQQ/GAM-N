@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" >
+  <Product
+      Id="*"
+      Name="GAM"
+      Language="1033"
+      Version="$(env.GAMVERSION)"
+      Manufacturer="Ross Scroggs - ross.scroggs@gmail.com"
+      UpgradeCode="15C5FD61-B04C-4E04-A26D-CD8424C19D9F">
+    <Package
+        InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+    <MajorUpgrade
+        DowngradeErrorMessage=
+            "A newer version of [ProductName] is already installed."
+        Schedule="afterInstallExecute" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+    <UIRef Id="WixUI_InstallDir" />
+
+    <Feature
+        Id="gam"
+        Title="GAM"
+        Level="1">
+      <ComponentGroupRef Id="ProductComponents" />
+    </Feature>
+  </Product>
+
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ROOTDRIVE">
+          <Directory Id="INSTALLFOLDER" Name="GAM" />
+        </Directory>
+    </Directory>
+  </Fragment>
+
+  <Fragment>
+    <!-- Group of components that are our main application items -->
+    <ComponentGroup
+        Id="ProductComponents"
+        Directory="INSTALLFOLDER"
+        Source="gam-64">
+      <Component Id="gam_exe" Guid="886abc07-73c5-4acc-9f71-58daf62aabc1">
+        <File Name="gam.exe" KeyPath="yes" />
+        <Environment Id="PATH" Name="PATH" Value="[INSTALLFOLDER]" Permanent="yes" Part="last" Action="set" System="yes" />
+      </Component>
+      <Component Id="license" Guid="7a15de2e-fb91-4d0a-b8bf-c8b19c68f569">
+        <File Name="LICENSE" KeyPath="yes" />
+      </Component>
+      <Component Id="whatsnew_txt" Guid="6aa9863c-90d9-412f-9b73-fda82549a950">
+        <File Name="whatsnew.txt" KeyPath="yes" />
+      </Component>
+      <Component Id="gam_setup_bat" Guid="ef01f93a-4b50-488a-9c04-ec5e13e66218">
+        <File Name="gam-setup.bat" KeyPath="yes" />
+      </Component>
+      <Component Id="gamcommands_txt" Guid="58ff9c45-a7c9-4e22-8845-a9a92610c1f3">
+        <File Name="gamcommands.txt" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <InstallUISequence>
+      <ExecuteAction />
+      <Show Dialog="WelcomeDlg" Before="ProgressDlg" />
+    </InstallUISequence>
+    <CustomAction Id="setup_gam" ExeCommand="[INSTALLFOLDER]gam-setup.bat" Directory="INSTALLFOLDER" Execute="commit" Impersonate="yes" Return="asyncWait"/>
+    <InstallExecuteSequence>
+     <Custom Action="setup_gam" After="InstallFiles" >NOT Installed AND NOT UPGRADINGPRODUCTCODE AND NOT WIX_UPGRADE_DETECTED</Custom>
+    </InstallExecuteSequence>
+  </Fragment>
+</Wix>
