@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.02'
+__version__ = u'4.03.03'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -12158,6 +12158,7 @@ def addUpdateSendAs(users, addCmd):
     body = {}
   signature = None
   tagReplacements = {}
+  html = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg in [u'signature', u'sig']:
@@ -12167,13 +12168,17 @@ def addUpdateSendAs(users, addCmd):
         signature = readFile(filename, encoding=encoding).replace(u'\\n', u'<br/>')
       else:
         signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
+    elif myarg == u'html':
+      html = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
   if signature is not None:
-    if signature and tagReplacements:
-      body[u'signature'] = _processTags(tagReplacements, signature)
-    else:
-      body[u'signature'] = signature
+    if signature:
+      if tagReplacements:
+        signature = _processTags(tagReplacements, signature)
+      if not html:
+        signature = signature.replace(u'\n', u'<br/>')
+    body[u'signature'] = signature
   kwargs = {u'body': body}
   if not addCmd:
     kwargs[u'sendAsEmail'] = emailAddress
@@ -12294,17 +12299,21 @@ def setSignature(users):
   else:
     signature = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'<br/>')
   body = {}
-  primary = False
+  html = primary = False
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'primary':
       primary = True
+    elif myarg == u'html':
+      html = True
     else:
       getSendAsAttributes(myarg, body, tagReplacements)
-  if signature and tagReplacements:
-    body[u'signature'] = _processTags(tagReplacements, signature)
-  else:
-    body[u'signature'] = signature
+  if signature:
+    if tagReplacements:
+      signature = _processTags(tagReplacements, signature)
+    if not html:
+      signature = signature.replace(u'\n', u'<br/>')
+  body[u'signature'] = signature
   i = 0
   count = len(users)
   for user in users:

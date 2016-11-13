@@ -1,3 +1,12 @@
+4.03.03
+
+Added html argument to gam add sendas/update sendas/signature to control newline (NL) processing when signature is read from a file.
+    gam <UserTypeEntity> [add] sendas <EmailAddress> <Name> [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [html] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+    gam <UserTypeEntity> update sendas <EmailAddress> [name <Name>] [signature|sig <String>|(file <FileName> [charset <CharSet>]) (replace <Tag> <String>)*] [html] [replyto <EmailAddress>] [default] [treatasalias <Boolean>]
+    gam <UserTypeEntity> signature|sig <String>|(file <FileName> [charset <Charset>]) (replace <Tag> <String>)* [html] [name <String>] [replyto <EmailAddress>] [default] [primary] [treatasalias <Boolean>]
+When html is not specified, newlines are converted to <br/>; this allows simple, multi-line files to be interpreted properly by Google.
+When html is specified, newlines are not converted to <br/>; this allows multi-line HTML files to be interpreted properly by Google, no extra blank lines will be included.
+
 4.03.02
 
 Improve Unicode handling when reading files.
