@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.01'
+__version__ = u'4.03.02'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -1811,9 +1811,10 @@ def readFile(filename, mode=u'rb', continueOnError=False, displayError=True, enc
           return f.read()
       with codecs.open(os.path.expanduser(filename), mode, encoding) as f:
         content = f.read()
+# codecs does not strip UTF-8 BOM (ef:bb:bf) so we must
         if not content.startswith(codecs.BOM_UTF8):
           return content
-        return content.replace(codecs.BOM_UTF8, u'', 1)
+        return content[3:]
     return unicode(sys.stdin.read())
   except IOError as e:
     if continueOnError:
@@ -1822,7 +1823,7 @@ def readFile(filename, mode=u'rb', continueOnError=False, displayError=True, enc
         setSysExitRC(FILE_ERROR_RC)
       return None
     systemErrorExit(FILE_ERROR_RC, e)
-  except LookupError as e:
+  except (LookupError, UnicodeDecodeError, UnicodeError) as e:
     putArgumentBack()
     usageErrorExit(e)
 

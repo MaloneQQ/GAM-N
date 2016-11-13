@@ -1,3 +1,7 @@
+4.03.02
+
+Improve Unicode handling when reading files.
+
 4.03.01
 
 Thanks to Jay for the following.
