@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.04'
+__version__ = u'4.03.05'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6066,7 +6066,6 @@ INFO_GROUP_OPTIONS = [u'nousers', u'groups',]
 
 def doInfoGroup(group_name=None):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
   getAliases = getUsers = True
   getGroups = getSettings = False
   cdfieldsList = gsfieldsList = None
@@ -6117,6 +6116,7 @@ def doInfoGroup(group_name=None):
     gsfieldsList = u','.join(set(gsfieldsList))
   basic_info = callGAPI(cd.groups(), u'get', groupKey=group_name, fields=cdfieldsList)
   if getSettings:
+    gs = buildGAPIObject(GROUPSSETTINGS_API)
     try:
       settings = callGAPI(gs.groups(), u'get', throw_reasons=[GAPI_AUTH_ERROR], retry_reasons=[GAPI_SERVICE_LIMIT],
                           groupUniqueId=basic_info[u'email'], fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
@@ -6238,6 +6238,8 @@ def doPrintGroups():
     gsfields = u','.join(set(gsfieldsList))
   elif getSettings:
     gsfields = None
+  if getSettings:
+    gs = buildGAPIObject(GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(roles)))
   sys.stderr.write(u"Retrieving All Groups for Google Apps account (may take some time on a large account)...\n")
   page_message = u'Got %%num_items%% groups: %%first_item%% - %%last_item%%\n'
@@ -6298,7 +6300,6 @@ def doPrintGroups():
         row[u'Owners'] = memberDelimiter.join(allOwners)
     if getSettings:
       sys.stderr.write(u" Retrieving Settings for group %s%s...\r\n" % (groupEmail, currentCount(i, count)))
-      gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
       settings = callGAPI(gs.groups(), u'get',
                           retry_reasons=[GAPI_SERVICE_LIMIT],
                           groupUniqueId=groupEmail, fields=gsfields)

@@ -1,3 +1,7 @@
+4.03.05
+
+Improve gam print groups settings performance.
+
 4.03.04
 
 Strip carriage returns from signature and vacation message.
