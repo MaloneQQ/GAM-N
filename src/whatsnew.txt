@@ -1,3 +1,8 @@
+4.03.07
+
+Reference gam create project and gam check serviceaccount rather than https://github.com/jay0lee/GAM/wiki/CreatingClientSecretsFile.
+Handle Google misreporting invalid group in gam print groups settings.
+
 4.03.06
 
 Do not get/set settings for special groups abuse and postmaster.
