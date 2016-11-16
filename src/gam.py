@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.05'
+__version__ = u'4.03.06'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -5924,6 +5924,9 @@ def getGroupAttrValue(argument, gs_body):
     else:
       gs_body[attrName] = getInteger()
 
+def GroupIsAbuseOrPostmaster(emailAddr):
+  return emailAddr.startswith(u'abuse@') or emailAddr.startswith(u'postmaster@')
+
 def doCreateGroup():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   body = {u'email': getEmailAddress(noUid=True)}
@@ -5939,7 +5942,7 @@ def doCreateGroup():
   body.setdefault(u'name', body[u'email'])
   print u"Creating group %s" % body[u'email']
   callGAPI(cd.groups(), u'insert', body=body, fields=u'email')
-  if gs_body:
+  if gs_body and not GroupIsAbuseOrPostmaster(body[u'email']):
     gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
     callGAPI(gs.groups(), u'patch', retry_reasons=[GAPI_SERVICE_LIMIT], groupUniqueId=body[u'email'], body=gs_body)
 
@@ -5972,7 +5975,7 @@ def doUpdateGroup():
     if body or (group.find(u'@') == -1): # group settings API won't take uid so we make sure cd API is used so that we can grab real email.
       cd_result = callGAPI(cd.groups(), u'patch', groupKey=group, body=body)
       group = cd_result[u'email']
-    if gs_body:
+    if gs_body and not GroupIsAbuseOrPostmaster(group):
       gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
       callGAPI(gs.groups(), u'patch', retry_reasons=[GAPI_SERVICE_LIMIT], groupUniqueId=group, body=gs_body)
     print u'updated group %s' % group
@@ -6115,8 +6118,8 @@ def doInfoGroup(group_name=None):
     getSettings = True
     gsfieldsList = u','.join(set(gsfieldsList))
   basic_info = callGAPI(cd.groups(), u'get', groupKey=group_name, fields=cdfieldsList)
-  if getSettings:
-    gs = buildGAPIObject(GROUPSSETTINGS_API)
+  if getSettings and not GroupIsAbuseOrPostmaster(basic_info[u'email']):
+    gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
     try:
       settings = callGAPI(gs.groups(), u'get', throw_reasons=[GAPI_AUTH_ERROR], retry_reasons=[GAPI_SERVICE_LIMIT],
                           groupUniqueId=basic_info[u'email'], fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
@@ -6239,7 +6242,7 @@ def doPrintGroups():
   elif getSettings:
     gsfields = None
   if getSettings:
-    gs = buildGAPIObject(GROUPSSETTINGS_API)
+    gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(roles)))
   sys.stderr.write(u"Retrieving All Groups for Google Apps account (may take some time on a large account)...\n")
   page_message = u'Got %%num_items%% groups: %%first_item%% - %%last_item%%\n'
@@ -6298,7 +6301,7 @@ def doPrintGroups():
         row[u'Managers'] = memberDelimiter.join(allManagers)
       if owners:
         row[u'Owners'] = memberDelimiter.join(allOwners)
-    if getSettings:
+    if getSettings and not GroupIsAbuseOrPostmaster(groupEmail):
       sys.stderr.write(u" Retrieving Settings for group %s%s...\r\n" % (groupEmail, currentCount(i, count)))
       settings = callGAPI(gs.groups(), u'get',
                           retry_reasons=[GAPI_SERVICE_LIMIT],

@@ -1,3 +1,7 @@
+4.03.06
+
+Do not get/set settings for special groups abuse and postmaster.
+
 4.03.05
 
 Improve gam print groups settings performance.
