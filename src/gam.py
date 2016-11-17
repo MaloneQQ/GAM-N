@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.07'
+__version__ = u'4.03.08'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -11086,7 +11086,7 @@ def _getLabelId(labels, labelName):
   for label in labels[u'labels']:
     if label[u'id'] == labelName or label[u'name'] == labelName:
       return label[u'id']
-  return labelName
+  return None
 
 def _getLabelName(labels, labelId):
   for label in labels[u'labels']:
@@ -11681,7 +11681,15 @@ def addFilter(users):
     if addLabelName:
       if not addLabelIds:
         body[u'action'][u'addLabelIds'] = []
-      body[u'action'][u'addLabelIds'].append(_getLabelId(labels, addLabelName))
+      addLabelId = _getLabelId(labels, addLabelName)
+      if not addLabelId:
+        result = callGAPI(gmail.users().labels(), u'create',
+                          soft_errors=True,
+                          userId=u'me', body={u'name': addLabelName}, fields=u'id')
+        if not result:
+          continue
+        addLabelId = result[u'id']
+      body[u'action'][u'addLabelIds'].append(addLabelId)
     print u"Adding filter for %s%s" % (user, currentCount(i, count))
     result = callGAPI(gmail.users().settings().filters(), u'create',
                       soft_errors=True,

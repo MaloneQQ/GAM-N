@@ -1,3 +1,9 @@
+4.03.08
+
+The Email Settings API, used by versions of Gam prior to 3.7, would automatically create a label if a you added a filter that specified a label that didn't exist.
+The Gmail API, used by versions of Gam from 3.7 on, does not automatically create the label, thus, you don't get the expected result.
+This version of Gam creates the label for you to give the expected result.
+
 4.03.07
 
 Reference gam create project and gam check serviceaccount rather than https://github.com/jay0lee/GAM/wiki/CreatingClientSecretsFile.
