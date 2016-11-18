@@ -12882,7 +12882,8 @@ def ProcessGAMCommand(args):
       else:
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
-    users = getUsersToModify(command, getString(OB_ENTITY))
+    putArgumentBack()
+    users = getUsersToModify(getChoice(usergroup_types), getString(OB_ENTITY))
     command = getArgument()
     if command == u'print' and CL_argvI == CL_argvLen:
       for user in users:
