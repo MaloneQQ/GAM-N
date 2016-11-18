@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.08'
+__version__ = u'4.03.09'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -6299,11 +6299,11 @@ def doPrintGroups():
         row[u'Owners'] = memberDelimiter.join(allOwners)
     if getSettings and not GroupIsAbuseOrPostmaster(groupEmail):
       sys.stderr.write(u" Retrieving Settings for group %s%s...\r\n" % (groupEmail, currentCount(i, count)))
-      try:
-        settings = callGAPI(gs.groups(), u'get',
-                            retry_reasons=[GAPI_SERVICE_LIMIT],
-                            throw_reasons=[GAPI_INVALID],
-                            groupUniqueId=groupEmail, fields=gsfields)
+      settings = callGAPI(gs.groups(), u'get',
+                          soft_errors=True,
+                          retry_reasons=[GAPI_SERVICE_LIMIT, GAPI_INVALID],
+                          groupUniqueId=groupEmail, fields=gsfields)
+      if settings:
         for key in settings:
           if key in [u'email', u'name', u'description', u'kind', u'etag']:
             continue
@@ -6313,7 +6313,7 @@ def doPrintGroups():
           if key not in titles:
             addTitleToCSVfile(key, titles)
           row[key] = setting_value
-      except GAPI_invalid:
+      else:
         sys.stderr.write(u" Settings unavailable for group %s (%s/%s)...\r\n" % (groupEmail, i, count))
     csvRows.append(row)
   writeCSVfile(csvRows, titles, u'Groups', todrive)

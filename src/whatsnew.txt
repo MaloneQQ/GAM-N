@@ -1,3 +1,7 @@
+4.03.09
+
+Improvements to handling Google misreporting invalid group in gam print groups settings.
+
 4.03.08
 
 The Email Settings API, used by versions of Gam prior to 3.7, would automatically create a label if a you added a filter that specified a label that didn't exist.
