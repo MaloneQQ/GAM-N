@@ -9606,16 +9606,23 @@ DRIVEFILE_FIELDS_CHOICES_MAP = {
   }
 
 FILEINFO_FIELDS_TITLES = [DRIVE_FILE_NAME, u'mimeType']
-FILEPATH_TITLES = [DRIVE_FILE_NAME, u'mimeType', u'parents']
-FILEPATH_FIELDS = [DRIVE_FILE_NAME, u'mimeType', u'parents(id)']
+FILEPATH_TITLES = [DRIVE_FILE_NAME, u'id', u'mimeType', u'parents']
+FILEPATH_FIELDS = [DRIVE_FILE_NAME, u'id', u'mimeType', u'parents(id)']
 
 def showDriveFileInfo(users):
+  def _setSelectionFields():
+    skip_objects.extend([field for field in FILEINFO_FIELDS_TITLES if field not in fieldsList])
+    fieldsList.extend(FILEINFO_FIELDS_TITLES)
+    if filepath:
+      skip_objects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
+      fieldsList.extend(FILEPATH_FIELDS)
+
   filepath = False
-  fileIdSelection = getDriveFileEntity()
-  body, parameters = initializeDriveFileAttributes()
   fieldsList = []
   labelsList = []
   skip_objects = []
+  fileIdSelection = getDriveFileEntity()
+  body, parameters = initializeDriveFileAttributes()
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'filepath':
@@ -9629,10 +9636,7 @@ def showDriveFileInfo(users):
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
-    skip_objects.extend([field for field in FILEINFO_FIELDS_TITLES if field not in fieldsList])
-    if filepath:
-      skip_objects.extend([field for field in FILEPATH_TITLES if field not in fieldsList])
-      fieldsList.extend(FILEPATH_FIELDS)
+    _setSelectionFields()
     fields = u','.join(set(fieldsList))
     if labelsList:
       fields += u',labels({0})'.format(u','.join(set(labelsList)))
@@ -12378,7 +12382,7 @@ def showSignature(users):
             _showSendAs(sendas, 0, 0, formatSig)
             break
     else:
-      result = callGAPI(gmail.users().settings().sendAs(), u'gett',
+      result = callGAPI(gmail.users().settings().sendAs(), u'get',
                         soft_errors=True,
                         userId=u'me', sendAsEmail=user)
       if result:
