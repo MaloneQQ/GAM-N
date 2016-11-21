@@ -16,14 +16,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-u"""GAM is a command line tool which allows Administrators to control their Google Apps domain and accounts.
+u"""GAM is a command line tool which allows Administrators to control their G Suite domain and accounts.
 
 With GAM you can programatically create users, turn on/off services for users like POP and Forwarding and much more.
 For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.09'
+__version__ = u'4.03.11'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -45,7 +45,6 @@ import random
 import re
 import socket
 import StringIO
-import subprocess
 
 import googleapiclient
 import googleapiclient.discovery
@@ -139,8 +138,6 @@ GM_GAM_PATH = u'gpth'
 GM_WINDOWS = u'wndo'
 # Encodings
 GM_SYS_ENCODING = u'syen'
-# Shared by batch_worker and run_batch
-GM_BATCH_QUEUE = u'batq'
 # Extra arguments to pass to GAPI functions
 GM_EXTRA_ARGS_LIST = u'exad'
 # Current API user
@@ -170,7 +167,6 @@ GM_Globals = {
   GM_GAM_PATH: os.path.dirname(os.path.realpath(__file__)) if not getattr(sys, u'frozen', False) else os.path.dirname(sys.executable),
   GM_WINDOWS: os.name == u'nt',
   GM_SYS_ENCODING: DEFAULT_CHARSET,
-  GM_BATCH_QUEUE: None,
   GM_EXTRA_ARGS_LIST:  [(u'prettyPrint', False)],
   GM_CURRENT_API_USER: None,
   GM_CURRENT_API_SCOPES: [],
@@ -192,12 +188,8 @@ GC_ACTIVITY_MAX_RESULTS = u'activity_max_results'
 # Automatically generate gam batch command if number of users specified in gam users xxx command exceeds this number
 # Default: 0, don't automatically generate gam batch commands
 GC_AUTO_BATCH_MIN = u'auto_batch_min'
-# When processing items in batches, how many should be processed in each batch
-GC_BATCH_SIZE = u'batch_size'
 # GAM cache directory
 GC_CACHE_DIR = u'cache_dir'
-# GAM cache discovery only. If no_cache is False, only API discovery calls will be cached
-GC_CACHE_DISCOVERY_ONLY = u'cache_discovery_only'
 # Character set of batch, csv, data files
 GC_CHARSET = u'charset'
 # Path to client_secrets.json
@@ -216,6 +208,10 @@ GC_DOMAIN = u'domain'
 GC_DRIVE_DIR = u'drive_dir'
 # When retrieving lists of Drive files/folders from API, how many should be retrieved in each chunk
 GC_DRIVE_MAX_RESULTS = u'drive_max_results'
+# Path to extra_args.txt
+GC_EXTRA_ARGS = u'extra_args'
+# When retrieving lists of Google Group members from API, how many should be retrieved in each chunk
+GC_MEMBER_MAX_RESULTS = u'member_max_results'
 # If no_browser is False, writeCSVfile won't open a browser when todrive is set
 # and doOAuthRequest prints a link and waits for the verification code when oauth2.txt is being created
 GC_NO_BROWSER = u'no_browser'
@@ -231,23 +227,13 @@ GC_NUM_THREADS = u'num_threads'
 GC_OAUTH2_TXT = u'oauth2_txt'
 # Path to oauth2service.json
 GC_OAUTH2SERVICE_JSON = u'oauth2service_json'
-# Default section to use for processing
-GC_SECTION = u'section'
-# Add (n/m) to end of messages if number of items to be processed exceeds this number
-GC_SHOW_COUNTS_MIN = u'show_counts_min'
-# Enable/disable "Getting ... " messages
-GC_SHOW_GETTINGS = u'show_gettings'
-# GAM config directory containing json discovery files
-GC_SITE_DIR = u'site_dir'
 # When retrieving lists of Users from API, how many should be retrieved in each chunk
 GC_USER_MAX_RESULTS = u'user_max_results'
 
 GC_Defaults = {
   GC_ACTIVITY_MAX_RESULTS: 100,
   GC_AUTO_BATCH_MIN: 0,
-  GC_BATCH_SIZE: 50,
   GC_CACHE_DIR: u'',
-  GC_CACHE_DISCOVERY_ONLY: FALSE,
   GC_CHARSET: DEFAULT_CHARSET,
   GC_CLIENT_SECRETS_JSON: FN_CLIENT_SECRETS_JSON,
   GC_CONFIG_DIR: u'',
@@ -257,17 +243,15 @@ GC_Defaults = {
   GC_DOMAIN: u'',
   GC_DRIVE_DIR: u'',
   GC_DRIVE_MAX_RESULTS: 1000,
-  GC_NO_BROWSER: FALSE,
-  GC_NO_CACHE: FALSE,
-  GC_NO_UPDATE_CHECK: FALSE,
-  GC_NO_VERIFY_SSL: FALSE,
-  GC_NUM_THREADS: 5,
+  GC_EXTRA_ARGS: u'',
+  GC_MEMBER_MAX_RESULTS: 200,
+  GC_NO_BROWSER: False,
+  GC_NO_CACHE: False,
+  GC_NO_UPDATE_CHECK: False,
+  GC_NO_VERIFY_SSL: False,
+  GC_NUM_THREADS: 25,
   GC_OAUTH2_TXT: FN_OAUTH2_TXT,
   GC_OAUTH2SERVICE_JSON: FN_OAUTH2SERVICE_JSON,
-  GC_SECTION: u'',
-  GC_SHOW_COUNTS_MIN: 0,
-  GC_SHOW_GETTINGS: TRUE,
-  GC_SITE_DIR: u'',
   GC_USER_MAX_RESULTS: 500,
   }
 
@@ -283,37 +267,36 @@ GC_TYPE_LANGUAGE = u'lang'
 GC_TYPE_STRING = u'stri'
 
 GC_VAR_TYPE = u'type'
+GC_VAR_ENVVAR = u'enva'
 GC_VAR_LIMITS = u'lmit'
+GC_VAR_SFFT = u'sfft'
+GC_VAR_SIGFILE = u'sigf'
 
 GC_VAR_INFO = {
-  GC_ACTIVITY_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (1, 500)},
-  GC_AUTO_BATCH_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (0, None)},
-  GC_BATCH_SIZE: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (1, 1000)},
-  GC_CACHE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY},
-  GC_CACHE_DISCOVERY_ONLY: {GC_VAR_TYPE: GC_TYPE_BOOLEAN},
-  GC_CHARSET: {GC_VAR_TYPE: GC_TYPE_STRING},
-  GC_CLIENT_SECRETS_JSON: {GC_VAR_TYPE: GC_TYPE_FILE},
-  GC_CONFIG_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY},
-  GC_CUSTOMER_ID: {GC_VAR_TYPE: GC_TYPE_STRING},
-  GC_DEBUG_LEVEL: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (0, None)},
-  GC_DEVICE_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (1, 1000)},
-  GC_DOMAIN: {GC_VAR_TYPE: GC_TYPE_STRING},
-  GC_DRIVE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY},
-  GC_DRIVE_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (1, 1000)},
-  GC_NO_BROWSER: {GC_VAR_TYPE: GC_TYPE_BOOLEAN},
-  GC_NO_CACHE: {GC_VAR_TYPE: GC_TYPE_BOOLEAN},
-  GC_NO_UPDATE_CHECK: {GC_VAR_TYPE: GC_TYPE_BOOLEAN},
-  GC_NO_VERIFY_SSL: {GC_VAR_TYPE: GC_TYPE_BOOLEAN},
-  GC_NUM_THREADS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (1, None)},
-  GC_OAUTH2_TXT: {GC_VAR_TYPE: GC_TYPE_FILE},
-  GC_OAUTH2SERVICE_JSON: {GC_VAR_TYPE: GC_TYPE_FILE},
-  GC_SECTION: {GC_VAR_TYPE: GC_TYPE_STRING},
-  GC_SHOW_COUNTS_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (0, None)},
-  GC_SHOW_GETTINGS: {GC_VAR_TYPE: GC_TYPE_BOOLEAN},
-  GC_SITE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY},
-  GC_USER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_LIMITS: (1, 500)},
+  GC_ACTIVITY_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_ACTIVITY_MAX_RESULTS', GC_VAR_LIMITS: (1, 500)},
+  GC_AUTO_BATCH_MIN: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_AUTOBATCH', GC_VAR_LIMITS: (None, None)},
+  GC_CACHE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY, GC_VAR_ENVVAR: u'GAMCACHEDIR'},
+  GC_CHARSET: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_CHARSET'},
+  GC_CLIENT_SECRETS_JSON: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'CLIENTSECRETS'},
+  GC_CONFIG_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY, GC_VAR_ENVVAR: u'GAMUSERCONFIGDIR'},
+  GC_CUSTOMER_ID: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'CUSTOMER_ID'},
+  GC_DEBUG_LEVEL: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_SIGFILE: u'debug.gam', GC_VAR_LIMITS: (0, None), GC_VAR_SFFT: (0, 4)},
+  GC_DEVICE_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_DEVICE_MAX_RESULTS', GC_VAR_LIMITS: (1, 1000)},
+  GC_DOMAIN: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GA_DOMAIN'},
+  GC_DRIVE_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY, GC_VAR_ENVVAR: u'GAMDRIVEDIR'},
+  GC_DRIVE_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_DRIVE_MAX_RESULTS', GC_VAR_LIMITS: (1, 1000)},
+  GC_EXTRA_ARGS: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_SIGFILE: FN_EXTRA_ARGS_TXT, GC_VAR_SFFT: (u'', FN_EXTRA_ARGS_TXT)},
+  GC_MEMBER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_MEMBER_MAX_RESULTS', GC_VAR_LIMITS: (1, 10000)},
+  GC_NO_BROWSER: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_SIGFILE: u'nobrowser.txt', GC_VAR_SFFT: (False, True)},
+  GC_NO_CACHE: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_SIGFILE: u'nocache.txt', GC_VAR_SFFT: (False, True)},
+  GC_NO_UPDATE_CHECK: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_SIGFILE: u'noupdatecheck.txt', GC_VAR_SFFT: (False, True)},
+  GC_NO_VERIFY_SSL: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_SIGFILE: u'noverifyssl.txt', GC_VAR_SFFT: (False, True)},
+  GC_NUM_THREADS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_THREADS', GC_VAR_LIMITS: (1, None)},
+  GC_OAUTH2_TXT: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'OAUTHFILE'},
+  GC_OAUTH2SERVICE_JSON: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'OAUTHSERVICEFILE'},
+  GC_USER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_USER_MAX_RESULTS', GC_VAR_LIMITS: (1, 500)},
   }
-#
+
 # Google API constants
 APPLICATION_VND_GOOGLE_APPS = u'application/vnd.google-apps.'
 MIMETYPE_GA_DOCUMENT = APPLICATION_VND_GOOGLE_APPS+u'document'
@@ -774,7 +757,7 @@ MESSAGE_API_ACCESS_CONFIG = u'API access is configured in your Control Panel und
 MESSAGE_API_ACCESS_DENIED = u'API access Denied.\n\nPlease make sure the Client ID: {0} is authorized for the API Scope(s): {1}'
 MESSAGE_BATCH_CSV_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible with debugging. Disable debugging by deleting debug.gam'
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
-MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large Google Apps instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
+MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large G Suite instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can create a file named noupdatecheck.txt in the same location as gam.py or gam.exe and GAM won\'t ever check for updates.'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
@@ -1346,12 +1329,14 @@ GOOGLE_SKU_CHOICES_MAP = {
   u'apps': GOOGLE_APPS_FOR_BUSINESS_SKU,
   u'gafb': GOOGLE_APPS_FOR_BUSINESS_SKU,
   u'gafw': GOOGLE_APPS_FOR_BUSINESS_SKU,
+  u'gsbasic': GOOGLE_APPS_FOR_BUSINESS_SKU,
   u'gams': GOOGLE_APPS_FOR_POSTINI_SKU,
   u'lite': GOOGLE_APPS_LITE_SKU,
   u'gau': GOOGLE_APPS_UNLIMITED_SKU,
   u'unlimited': GOOGLE_APPS_UNLIMITED_SKU,
   u'd4w': GOOGLE_APPS_UNLIMITED_SKU,
   u'dfw': GOOGLE_APPS_UNLIMITED_SKU,
+  u'gsbusiness': GOOGLE_APPS_UNLIMITED_SKU,
   u'coordinate': GOOGLE_COORDINATE_SKU,
   u'vault': GOOGLE_VAULT_SKU,
   u'vfe': GOOGLE_VAULT_FORMER_EMPLOYEE_SKU,
@@ -1459,7 +1444,7 @@ def getInteger(minVal=None, maxVal=None):
   if CL_argvI < CL_argvLen:
     try:
       number = int(CL_argv[CL_argvI].strip())
-      if (not minVal or (number >= minVal)) and (not maxVal or (number <= maxVal)):
+      if ((minVal is None) or (number >= minVal)) and ((maxVal is None) or (number <= maxVal)):
         CL_argvI += 1
         return number
     except ValueError:
@@ -1737,10 +1722,10 @@ def formatMilliSeconds(millis):
   return u'%02d:%02d:%02d' % (hours, minutes, seconds)
 
 def currentCount(i, count):
-  return u' ({0}/{1})'.format(i, count) if (count > GC_Values[GC_SHOW_COUNTS_MIN]) else u''
+  return u' ({0}/{1})'.format(i, count)
 
 def currentCountNL(i, count):
-  return u' ({0}/{1})\n'.format(i, count) if (count > GC_Values[GC_SHOW_COUNTS_MIN]) else u'\n'
+  return u' ({0}/{1})\n'.format(i, count)
 
 def formatHTTPError(http_status, reason, message):
   return u'{0}: {1} - {2}'.format(http_status, reason, message)
@@ -1902,71 +1887,86 @@ def openCSVFileReader(filename):
 #
 def SetGlobalVariables():
 
-  def _getOldEnvVar(itemName, envVar):
-    value = os.environ.get(envVar, GC_Defaults[itemName])
-    if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_INTEGER:
-      try:
-        number = int(value)
-        minVal, maxVal = GC_VAR_INFO[itemName][GC_VAR_LIMITS]
-        if number < minVal:
-          number = minVal
-        elif maxVal and (number > maxVal):
-          number = maxVal
-      except ValueError:
-        number = GC_Defaults[itemName]
-      value = number
-    GC_Defaults[itemName] = value
-
-  def _getOldSignalFile(itemName, fileName, trueValue=True, falseValue=False):
-    GC_Defaults[itemName] = trueValue if os.path.isfile(os.path.join(GC_Defaults[GC_CONFIG_DIR], fileName)) else falseValue
+  def _getDefault(itemName, itemEntry):
+    if GC_VAR_SIGFILE in itemEntry:
+      GC_Defaults[itemName] = itemEntry[GC_VAR_SFFT][os.path.isfile(os.path.join(GC_Defaults[GC_CONFIG_DIR], itemEntry[GC_VAR_SIGFILE]))]
+    else:
+      value = os.environ.get(itemEntry[GC_VAR_ENVVAR], GC_Defaults[itemName])
+      if itemEntry[GC_VAR_TYPE] == GC_TYPE_INTEGER:
+        try:
+          number = int(value)
+          minVal, maxVal = itemEntry[GC_VAR_LIMITS]
+          if (minVal is not None) and (number < minVal):
+            number = minVal
+          elif (maxVal is not None) and (number > maxVal):
+            number = maxVal
+        except ValueError:
+          number = GC_Defaults[itemName]
+        value = number
+      GC_Defaults[itemName] = value
 
   def _getCfgDirectory(itemName):
-    return GC_Defaults[itemName]
+    dirPath = os.path.expanduser(GC_Defaults[itemName])
+    if (not dirPath) or (not os.path.isabs(dirPath)):
+      dirPath = os.path.join(GM_Globals[GM_GAM_PATH], dirPath)
+    return dirPath
 
-  def _getCfgFile(itemName):
+  def _getCfgFile(itemName, GC_Table):
     value = os.path.expanduser(GC_Defaults[itemName])
     if not os.path.isabs(value):
-      value = os.path.expanduser(os.path.join(GC_Values[GC_CONFIG_DIR], value))
+      value = os.path.expanduser(os.path.join(GC_Table[GC_CONFIG_DIR], value))
     return value
 
+  def _verifyValues():
+    print u'Gam: Variables'
+    for itemName in sorted(GC_VAR_INFO):
+      cfgValue = GC_Defaults[itemName]
+      if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_FILE:
+        expdValue = _getCfgFile(itemName, GC_Defaults)
+        if cfgValue != expdValue:
+          cfgValue = u'{0} ; {1}'.format(cfgValue, expdValue)
+      elif GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_DIRECTORY:
+        expdValue = _getCfgDirectory(itemName)
+        if cfgValue != expdValue:
+          cfgValue = u'{0} ; {1}'.format(cfgValue, expdValue)
+      print u'  {0} = {1}'.format(itemName, cfgValue)
+
+# Read environment variables/signal files
   GC_Defaults[GC_CONFIG_DIR] = GM_Globals[GM_GAM_PATH]
   GC_Defaults[GC_CACHE_DIR] = os.path.join(GM_Globals[GM_GAM_PATH], u'gamcache')
   GC_Defaults[GC_DRIVE_DIR] = GM_Globals[GM_GAM_PATH]
-  GC_Defaults[GC_SITE_DIR] = GM_Globals[GM_GAM_PATH]
-
-  _getOldEnvVar(GC_CONFIG_DIR, u'GAMUSERCONFIGDIR')
-  _getOldEnvVar(GC_SITE_DIR, u'GAMSITECONFIGDIR')
-  _getOldEnvVar(GC_CACHE_DIR, u'GAMCACHEDIR')
-  _getOldEnvVar(GC_DRIVE_DIR, u'GAMDRIVEDIR')
-  _getOldEnvVar(GC_OAUTH2_TXT, u'OAUTHFILE')
-  _getOldEnvVar(GC_OAUTH2SERVICE_JSON, u'OAUTHSERVICEFILE')
-  if GC_Defaults[GC_OAUTH2SERVICE_JSON].find(u'.') == -1:
-    GC_Defaults[GC_OAUTH2SERVICE_JSON] += u'.json'
-  _getOldEnvVar(GC_CLIENT_SECRETS_JSON, u'CLIENTSECRETS')
-  _getOldEnvVar(GC_DOMAIN, u'GA_DOMAIN')
-  _getOldEnvVar(GC_CUSTOMER_ID, u'CUSTOMER_ID')
-  _getOldEnvVar(GC_CHARSET, u'GAM_CHARSET')
-  _getOldEnvVar(GC_NUM_THREADS, u'GAM_THREADS')
-  _getOldEnvVar(GC_AUTO_BATCH_MIN, u'GAM_AUTOBATCH')
-  _getOldEnvVar(GC_ACTIVITY_MAX_RESULTS, u'GAM_ACTIVITY_MAX_RESULTS')
-  _getOldEnvVar(GC_DEVICE_MAX_RESULTS, u'GAM_DEVICE_MAX_RESULTS')
-  _getOldEnvVar(GC_DRIVE_MAX_RESULTS, u'GAM_DRIVE_MAX_RESULTS')
-  _getOldEnvVar(GC_USER_MAX_RESULTS, u'GAM_USER_MAX_RESULTS')
-  _getOldSignalFile(GC_CACHE_DISCOVERY_ONLY, u'cachediscoveryonly.txt')
-  _getOldSignalFile(GC_DEBUG_LEVEL, u'debug.gam', trueValue=4, falseValue=0)
-  _getOldSignalFile(GC_NO_VERIFY_SSL, u'noverifyssl.txt')
-  _getOldSignalFile(GC_NO_BROWSER, u'nobrowser.txt')
-  _getOldSignalFile(GC_NO_CACHE, u'nocache.txt')
-  _getOldSignalFile(GC_NO_UPDATE_CHECK, u'noupdatecheck.txt')
-# Assign directories first
+  for itemName, itemEntry in GC_VAR_INFO.items():
+    if itemEntry[GC_VAR_TYPE] == GC_TYPE_DIRECTORY:
+      _getDefault(itemName, itemEntry)
+  for itemName, itemEntry in GC_VAR_INFO.items():
+    if itemEntry[GC_VAR_TYPE] != GC_TYPE_DIRECTORY:
+      _getDefault(itemName, itemEntry)
+# config [<VariableName> <Value>]* [verify]
+  if checkArgumentPresent([u'config',]):
+    while CL_argvI < CL_argvLen:
+      if checkArgumentPresent([u'verify',]):
+        _verifyValues()
+      else:
+        itemName = getChoice(GC_VAR_INFO, defaultChoice=None)
+        if itemName is None:
+          break
+        if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_BOOLEAN:
+          value = getBoolean()
+        elif GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_INTEGER:
+          minVal, maxVal = GC_VAR_INFO[itemName][GC_VAR_LIMITS]
+          value = str(getInteger(minVal=minVal, maxVal=maxVal))
+        else:
+          value = getString(OB_STRING)
+        GC_Defaults[itemName] = value
+# Assign global variables, directories first as other variables depend on them
   for itemName in GC_VAR_INFO:
     if GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_DIRECTORY:
       GC_Values[itemName] = _getCfgDirectory(itemName)
   for itemName in GC_VAR_INFO:
     varType = GC_VAR_INFO[itemName][GC_VAR_TYPE]
     if varType == GC_TYPE_FILE:
-      GC_Values[itemName] = _getCfgFile(itemName)
-    else:
+      GC_Values[itemName] = _getCfgFile(itemName, GC_Values)
+    elif varType != GC_TYPE_DIRECTORY:
       GC_Values[itemName] = GC_Defaults[itemName]
   GM_Globals[GM_LAST_UPDATE_CHECK_TXT] = os.path.join(GC_Values[GC_CONFIG_DIR], FN_LAST_UPDATE_CHECK_TXT)
   if not GC_Values[GC_NO_UPDATE_CHECK]:
@@ -1976,18 +1976,15 @@ def SetGlobalVariables():
   GM_Globals[GM_OAUTH2SERVICE_ACCOUNT_CLIENT_ID] = None
   GM_Globals[GM_EXTRA_ARGS_LIST] = [(u'prettyPrint', GC_Values[GC_DEBUG_LEVEL] > 0)]
   httplib2.debuglevel = GC_Values[GC_DEBUG_LEVEL]
-  if os.path.isfile(os.path.join(GC_Values[GC_CONFIG_DIR], FN_EXTRA_ARGS_TXT)):
+  if os.path.isfile(GC_Values[GC_EXTRA_ARGS]):
     ea_config = ConfigParser.ConfigParser()
     ea_config.optionxform = str
-    ea_config.read(os.path.join(GC_Values[GC_CONFIG_DIR], FN_EXTRA_ARGS_TXT))
+    ea_config.read(GC_Values[GC_EXTRA_ARGS])
     GM_Globals[GM_EXTRA_ARGS_LIST].extend(ea_config.items(u'extra-args'))
   if GC_Values[GC_NO_CACHE]:
     GM_Globals[GM_CACHE_DIR] = None
-    GM_Globals[GM_CACHE_DISCOVERY_ONLY] = False
-  else:
-    GM_Globals[GM_CACHE_DIR] = GC_Values[GC_CACHE_DIR]
-    GM_Globals[GM_CACHE_DISCOVERY_ONLY] = GC_Values[GC_CACHE_DISCOVERY_ONLY]
-  return True
+# If there are more arguments on the command line, return True
+  return (CL_argvI == 1) or (CL_argvI < CL_argvLen)
 
 def doGAMCheckForUpdates(forceCheck=False):
   import urllib2
@@ -3020,15 +3017,16 @@ def getUsersToModify(entityType, entity, silent=False, member_type=None, checkNo
     if not silent:
       sys.stderr.write(u"Getting %s of %s (may take some time for large groups)...\n" % (member_type_message, group))
       page_message = u'Got %%%%total_items%%%% %s...' % member_type_message
-    members = callGAPIpages(cd.members(), u'list', u'members', page_message=page_message,
-                            groupKey=group, roles=member_type, fields=u'nextPageToken,members(email)')
+    members = callGAPIpages(cd.members(), u'list', u'members',
+                            page_message=page_message,
+                            groupKey=group, roles=member_type, fields=u'nextPageToken,members(email)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
     users = [member[u'email'] for member in members]
   elif entityType in [u'ou', u'org']:
     ou = makeOrgUnitPathAbsolute(entity)
     users = []
     page_message = None
     if not silent:
-      sys.stderr.write(u"Getting all users in the Google Apps organization (may take some time on a large domain)...\n")
+      sys.stderr.write(u"Getting all users in the G Suite organization (may take some time on a large domain)...\n")
       page_message = u'Got %%total_items%% users...'
     members = callGAPIpages(cd.users(), u'list', u'users', page_message=page_message,
                             customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,users(primaryEmail,suspended,orgUnitPath)',
@@ -3045,7 +3043,7 @@ def getUsersToModify(entityType, entity, silent=False, member_type=None, checkNo
     users = []
     page_message = None
     if not silent:
-      sys.stderr.write(u"Getting all users in the Google Apps organization (may take some time on a large domain)...\n")
+      sys.stderr.write(u"Getting all users in the G Suite organization (may take some time on a large domain)...\n")
       page_message = u'Got %%total_items%% users..'
     members = callGAPIpages(cd.users(), u'list', u'users', page_message=page_message,
                             customer=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,users(primaryEmail,suspended)',
@@ -3133,7 +3131,7 @@ def getUsersToModify(entityType, entity, silent=False, member_type=None, checkNo
     users = []
     if entity.lower() == u'users':
       if not silent:
-        sys.stderr.write(u"Getting all users in Google Apps account (may take some time on a large account)...\n")
+        sys.stderr.write(u"Getting all users in G Suite account (may take some time on a large account)...\n")
       page_message = u'Got %%total_items%% users...'
       all_users = callGAPIpages(cd.users(), u'list', u'users', page_message=page_message,
                                 customer=GC_Values[GC_CUSTOMER_ID],
@@ -3145,7 +3143,7 @@ def getUsersToModify(entityType, entity, silent=False, member_type=None, checkNo
         sys.stderr.write(u"done getting %s users.\r\n" % len(users))
     elif entity.lower() == u'cros':
       if not silent:
-        sys.stderr.write(u"Getting all CrOS devices in Google Apps account (may take some time on a large account)...\n")
+        sys.stderr.write(u"Getting all CrOS devices in G Suite account (may take some time on a large account)...\n")
       all_cros = callGAPIpages(cd.chromeosdevices(), u'list', u'chromeosdevices',
                                customerId=GC_Values[GC_CUSTOMER_ID], fields=u'nextPageToken,chromeosdevices(deviceId)',
                                maxResults=GC_Values[GC_DEVICE_MAX_RESULTS])
@@ -3377,7 +3375,7 @@ def showUsage():
   print u'''
 Usage: gam [OPTIONS]...
 
-GAM. Retrieve or set Google Apps domain,
+GAM. Retrieve or set G Suite domain,
 user, group and alias settings. Exhaustive list of commands
 can be found at: https://github.com/jay0lee/GAM/wiki
 
@@ -3390,37 +3388,22 @@ gam.exe update group announcements add member jsmith
 
 '''
 
-def batch_worker():
-  while True:
-    item = GM_Globals[GM_BATCH_QUEUE].get()
-    subprocess.call(item, stderr=subprocess.STDOUT)
-    GM_Globals[GM_BATCH_QUEUE].task_done()
-
-def run_batch(items, total_items):
-  import Queue
-  import threading
-  current_item = 0
-  python_cmd = [sys.executable.lower(),]
-  if not getattr(sys, u'frozen', False): # we're not frozen
-    python_cmd.append(os.path.realpath(CL_argv[0]))
-  num_worker_threads = min(total_items, GC_Values[GC_NUM_THREADS])
-  GM_Globals[GM_BATCH_QUEUE] = Queue.Queue(maxsize=num_worker_threads) # GM_Globals[GM_BATCH_QUEUE].put() gets blocked when trying to create more items than there are workers
-  sys.stderr.write(u'starting %s worker threads...\n' % num_worker_threads)
-  for _ in range(num_worker_threads):
-    t = threading.Thread(target=batch_worker)
-    t.daemon = True
-    t.start()
+def run_batch(items):
+  from multiprocessing import Pool
+  num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
+  pool = Pool(processes=num_worker_threads)
+  sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
   for item in items:
-    current_item += 1
-    if not current_item % 100:
-      sys.stderr.write(u'starting job %s / %s\n' % (current_item, total_items))
     if item[0] == u'commit-batch':
       sys.stderr.write(u'commit-batch - waiting for running processes to finish before proceeding...')
-      GM_Globals[GM_BATCH_QUEUE].join()
+      pool.close()
+      pool.join()
+      pool = Pool(processes=num_worker_threads)
       sys.stderr.write(u'done with commit-batch\n')
       continue
-    GM_Globals[GM_BATCH_QUEUE].put(python_cmd+item)
-  GM_Globals[GM_BATCH_QUEUE].join()
+    pool.apply_async(ProcessGAMCommand, [item])
+  pool.close()
+  pool.join()
 
 def doBatch():
   import shlex
@@ -3431,7 +3414,6 @@ def doBatch():
   encoding = getCharSet()
   checkForExtraneousArguments()
   items = []
-  cmdCount = 0
   f = openFile(filename)
   batchFile = UTF8Recoder(f, encoding) if encoding != u'utf-8' else f
   try:
@@ -3443,8 +3425,7 @@ def doBatch():
       if (not cmd) or cmd.startswith(u'#') or ((len(argv) == 1) and (cmd != COMMIT_BATCH_CMD)):
         continue
       if cmd == GAM_CMD:
-        items.append([arg.encode(GM_Globals[GM_SYS_ENCODING]) for arg in argv[1:]])
-        cmdCount += 1
+        items.append([arg.encode(GM_Globals[GM_SYS_ENCODING]) for arg in argv])
       elif cmd == COMMIT_BATCH_CMD:
         items.append([cmd])
       else:
@@ -3455,11 +3436,13 @@ def doBatch():
   except IOError as e:
     systemErrorExit(FILE_ERROR_RC, e)
   closeFile(f)
-  run_batch(items, cmdCount)
+  run_batch(items)
 
-def doAutoBatch(CL_entityType, CL_entityList, CL_command):
-  items = [[CL_entityType, entity, CL_command]+CL_argv[CL_argvI:] for entity in CL_entityList]
-  run_batch(items, len(items))
+def runCmdForUsers(cmd, users, **kwargs):
+  if (GC_Values[GC_AUTO_BATCH_MIN] < 0) and (len(users) > -GC_Values[GC_AUTO_BATCH_MIN]):
+    run_batch([[u'gam', u'user', user]+sys.argv[3:] for user in users])
+  else:
+    cmd(users, **kwargs)
 
 # Process command line arguments, find substitutions
 # An argument containing instances of ~~xxx~!~pattern~!~replacement~~ has ~~...~~ replaced by re.sub(pattern, replacement, value of field xxx from the CSV file)
@@ -3556,9 +3539,9 @@ def doCSV():
   items = []
   for row in csvFile:
     if (not matchFields) or checkMatchFields(row, matchFields):
-      items.append(processSubFields(GAM_argv, row, subFields))
+      items.append([GAM_CMD]+processSubFields(GAM_argv, row, subFields))
   closeFile(f)
-  run_batch(items, len(items))
+  run_batch(items)
 
 class cmd_flags(object):
   def __init__(self, noLocalWebserver):
@@ -3834,9 +3817,9 @@ def doOAuthInfo():
   for scope in token_info[u'scope'].split(u' '):
     print u'  %s' % scope
   try:
-    print u'Google Apps Admin: %s' % token_info[u'email']
+    print u'G Suite Admin: %s' % token_info[u'email']
   except KeyError:
-    print u'Google Apps Admin: Unknown'
+    print u'G Suite Admin: Unknown'
 
 def doWhatIs():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
@@ -4807,7 +4790,7 @@ def doPrintOrgs():
                   customerId=GC_Values[GC_CUSTOMER_ID], type=listType, orgUnitPath=orgUnitPath, fields=u'organizationUnits({0})'.format(u','.join(set(fieldsList))))
   sys.stderr.write(u"done\n")
   if not u'organizationUnits' in orgs:
-    print u'0 org units in this Google Apps instance...'
+    print u'0 org units in this G Suite instance...'
     return
   for orgUnit in orgs[u'organizationUnits']:
     row = {}
@@ -6007,10 +5990,10 @@ def doUpdateGroup():
     sys.stderr.write(u'Need to add %s %s and remove %s.\n' % (len(to_add), role, len(to_remove)))
     items = []
     for user_email in to_add:
-      items.append([u'update', u'group', group, u'add', role, user_email])
+      items.append([GAM_CMD, u'update', u'group', group, u'add', role, user_email])
     for user_email in to_remove:
-      items.append([u'update', u'group', group, u'remove', user_email])
-    run_batch(items, len(items))
+      items.append([GAM_CMD, u'update', u'group', group, u'remove', user_email])
+    run_batch(items)
   elif myarg in [u'delete', u'remove']:
     role = getChoice(GROUP_ROLES_MAP, defaultChoice=ROLE_MEMBER, mapChoice=True)
     _, users_email = getEntityToModify()
@@ -6154,7 +6137,8 @@ def doInfoGroup(group_name=None):
       for groupm in groups:
         print u'  %s: %s' % (groupm[u'name'], groupm[u'email'])
   if getUsers:
-    members = callGAPIpages(cd.members(), u'list', u'members', groupKey=group_name)
+    members = callGAPIpages(cd.members(), u'list', u'members',
+                            groupKey=group_name, fields=u'nextPageToken,members(email,id,role,type)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
     print u'Members:'
     for member in members:
       try:
@@ -6240,7 +6224,7 @@ def doPrintGroups():
   if getSettings:
     gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
   roles = u','.join(sorted(set(roles)))
-  sys.stderr.write(u"Retrieving All Groups for Google Apps account (may take some time on a large account)...\n")
+  sys.stderr.write(u"Retrieving All Groups for G Suite account (may take some time on a large account)...\n")
   page_message = u'Got %%num_items%% groups: %%first_item%% - %%last_item%%\n'
   entityList = callGAPIpages(cd.groups(), u'list', u'groups',
                              page_message=page_message, message_attribute=u'email',
@@ -6264,7 +6248,7 @@ def doPrintGroups():
       page_message = u'Got %%num_items%% members: %%first_item%% - %%last_item%%\n'
       groupMembers = callGAPIpages(cd.members(), u'list', u'members',
                                    page_message=page_message, message_attribute=u'email',
-                                   groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)')
+                                   groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
       if members:
         allMembers = []
       if managers:
@@ -6322,9 +6306,8 @@ def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplica
   try:
     sys.stderr.write(u'Getting members for %s%s' % (groupEmail, currentCountNL(i, count)))
     groupMembers = callGAPIpages(cd.members(), u'list', u'members',
-                                 message_attribute=u'email',
                                  throw_reasons=[GAPI_GROUP_NOT_FOUND, GAPI_DOMAIN_NOT_FOUND, GAPI_FORBIDDEN],
-                                 groupKey=groupEmail)
+                                 groupKey=groupEmail, maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
     if not recursive:
       if noduplicates:
         for member in groupMembers:
@@ -7835,7 +7818,7 @@ def doPrintUsers():
     fields = u'nextPageToken,users(%s)' % u','.join(set(fieldsList)).replace(u'.', u'/')
   else:
     fields = None
-  sys.stderr.write(u"Getting all users in Google Apps account (may take some time on a large account)...\n")
+  sys.stderr.write(u"Getting all users in G Suite account (may take some time on a large account)...\n")
   page_message = u'Got %%total_items%% users: %%first_item%% - %%last_item%%\n'
   feed = callGAPIpages(cd.users(), u'list', u'users', page_message=page_message,
                        message_attribute=u'primaryEmail', customer=customer, domain=domain, fields=fields,
@@ -7982,7 +7965,7 @@ def updateSiteVerification():
   except KeyError:
     pass
   print
-  print u'You can now add %s or it\'s subdomains as secondary or domain aliases of the %s Google Apps Account.' % (a_domain, GC_Values[GC_DOMAIN])
+  print u'You can now add %s or it\'s subdomains as secondary or domain aliases of the %s G Suite Account.' % (a_domain, GC_Values[GC_DOMAIN])
 
 def doInfoSiteVerification():
   verif = buildGAPIObject(GAPI_SITEVERIFICATION_API)
@@ -8340,10 +8323,10 @@ def doCourseSyncParticipants(courseId):
   to_remove = list(set(current_course_users) - set(diff_against_users))
   gam_commands = []
   for add_email in to_add:
-    gam_commands.append([u'course', courseId, u'add', participant_type, add_email])
+    gam_commands.append([GAM_CMD, u'course', courseId, u'add', participant_type, add_email])
   for remove_email in to_remove:
-    gam_commands.append([u'course', courseId, u'remove', participant_type, remove_email])
-  run_batch(gam_commands, len(gam_commands))
+    gam_commands.append([GAM_CMD, u'course', courseId, u'remove', participant_type, remove_email])
+  run_batch(gam_commands)
 
 def doPrintCourseParticipants():
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
@@ -12530,7 +12513,8 @@ def ProcessGAMCommand(args):
   setSysExitRC(0)
   initializeArguments(args)
   try:
-    SetGlobalVariables()
+    if not SetGlobalVariables():
+      sys.exit(GM_Globals[GM_SYSEXITRC])
     if CL_argvI == CL_argvLen:
       showUsage()
       sys.exit(GM_Globals[GM_SYSEXITRC])
@@ -12889,18 +12873,7 @@ def ProcessGAMCommand(args):
       for user in users:
         print user
       sys.exit(GM_Globals[GM_SYSEXITRC])
-    if (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(users) > GC_Values[GC_AUTO_BATCH_MIN]):
-      doAutoBatch(u'user', users, command)
-      sys.exit(GM_Globals[GM_SYSEXITRC])
-    if command == u'transfer':
-      transferWhat = getArgument()
-      if transferWhat == u'drive':
-        transferDriveFiles(users)
-      elif transferWhat == u'seccals':
-        transferSecCals(users)
-      else:
-        unknownArgumentExit()
-    elif command == u'show':
+    if command == u'show':
       showWhat = getArgument()
       if showWhat in [u'labels', u'label']:
         showLabels(users)
@@ -12956,6 +12929,7 @@ def ProcessGAMCommand(args):
         printShowForwardingAddresses(users, False)
       else:
         unknownArgumentExit()
+      sys.exit(GM_Globals[GM_SYSEXITRC])
     elif command == u'print':
       printWhat = getArgument()
       if printWhat == u'calendars':
@@ -12982,6 +12956,31 @@ def ProcessGAMCommand(args):
         printShowGplusProfile(users, True)
       elif printWhat in [u'token', u'tokens', u'oauth', u'3lo']:
         printShowTokens(u'users', users, True)
+      else:
+        unknownArgumentExit()
+      sys.exit(GM_Globals[GM_SYSEXITRC])
+    elif command == u'info':
+      infoWhat = getArgument()
+      if infoWhat == u'calendar':
+        infoCalendar(users)
+      elif infoWhat in [u'filter', u'filters']:
+        infoFilters(users)
+      elif infoWhat in [u'forwardingaddress', u'forwardingaddresses']:
+        infoForwardingAddresses(users)
+      elif infoWhat == u'sendas':
+        infoSendAs(users)
+      else:
+        unknownArgumentExit()
+      sys.exit(GM_Globals[GM_SYSEXITRC])
+    if (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(users) > GC_Values[GC_AUTO_BATCH_MIN]):
+      run_batch([[u'gam', u'user', user]+sys.argv[3:] for user in users])
+      sys.exit(GM_Globals[GM_SYSEXITRC])
+    if command == u'transfer':
+      transferWhat = getArgument()
+      if transferWhat == u'drive':
+        transferDriveFiles(users)
+      elif transferWhat == u'seccals':
+        transferSecCals(users)
       else:
         unknownArgumentExit()
     elif command == u'modify':
@@ -13106,18 +13105,6 @@ def ProcessGAMCommand(args):
         emptyDriveTrash(users)
       else:
         unknownArgumentExit()
-    elif command == u'info':
-      infoWhat = getArgument()
-      if infoWhat == u'calendar':
-        infoCalendar(users)
-      elif infoWhat in [u'filter', u'filters']:
-        infoFilters(users)
-      elif infoWhat in [u'forwardingaddress', u'forwardingaddresses']:
-        infoForwardingAddresses(users)
-      elif infoWhat == u'sendas':
-        infoSendAs(users)
-      else:
-        unknownArgumentExit()
     elif command == u'check':
       checkWhat = sys.argv[4].replace(u'_', '').lower()
       if checkWhat == u'serviceaccount':
@@ -13173,31 +13160,65 @@ def ProcessGAMCommand(args):
     GM_Globals[GM_SYSEXITRC] = e.code
   return GM_Globals[GM_SYSEXITRC]
 
-def win32_unicode_argv():
-  from ctypes import POINTER, byref, cdll, c_int, windll
-  from ctypes.wintypes import LPCWSTR, LPWSTR
+# From: https://github.com/pyinstaller/pyinstaller/wiki/Recipe-Multiprocessing
+#
+if sys.platform.startswith('win'):
+  from multiprocessing import freeze_support
+  try:
+    import multiprocessing.popen_spawn_win32 as forking
+  except ImportError:
+    import multiprocessing.forking as forking
 
-  GetCommandLineW = cdll.kernel32.GetCommandLineW
-  GetCommandLineW.argtypes = []
-  GetCommandLineW.restype = LPCWSTR
+  # First define a modified version of Popen.
+  class _Popen(forking.Popen):
+    def __init__(self, *args, **kw):
+      if hasattr(sys, 'frozen'):
+        # We have to set original _MEIPASS2 value from sys._MEIPASS
+        # to get --onefile mode working.
+        os.putenv('_MEIPASS2', sys._MEIPASS)
+      try:
+        super(_Popen, self).__init__(*args, **kw)
+      finally:
+        if hasattr(sys, 'frozen'):
+          # On some platforms (e.g. AIX) 'os.unsetenv()' is not
+          # available. In those cases we cannot delete the variable
+          # but only set it to the empty string. The bootloader
+          # can handle this case.
+          if hasattr(os, 'unsetenv'):
+            os.unsetenv('_MEIPASS2')
+          else:
+            os.putenv('_MEIPASS2', '')
 
-  CommandLineToArgvW = windll.shell32.CommandLineToArgvW
-  CommandLineToArgvW.argtypes = [LPCWSTR, POINTER(c_int)]
-  CommandLineToArgvW.restype = POINTER(LPWSTR)
+  # Second override 'Popen' class with our modified version.
+  forking.Popen = _Popen
 
-  cmd = GetCommandLineW()
-  argc = c_int(0)
-  argv = CommandLineToArgvW(cmd, byref(argc))
-  if argc.value > 0:
-    # Remove Python executable and commands if present
-    argc_value = int(argc.value)
-    sys.argv = argv[argc_value-len(sys.argv):argc_value]
+  def win32_unicode_argv():
+    from ctypes import POINTER, byref, cdll, c_int, windll
+    from ctypes.wintypes import LPCWSTR, LPWSTR
+
+    GetCommandLineW = cdll.kernel32.GetCommandLineW
+    GetCommandLineW.argtypes = []
+    GetCommandLineW.restype = LPCWSTR
+
+    CommandLineToArgvW = windll.shell32.CommandLineToArgvW
+    CommandLineToArgvW.argtypes = [LPCWSTR, POINTER(c_int)]
+    CommandLineToArgvW.restype = POINTER(LPWSTR)
+
+    cmd = GetCommandLineW()
+    argc = c_int(0)
+    argv = CommandLineToArgvW(cmd, byref(argc))
+    if argc.value > 0:
+      # Remove Python executable and commands if present
+      argc_value = int(argc.value)
+      sys.argv = argv[argc_value-len(sys.argv):argc_value]
 
 # Run from command line
 if __name__ == "__main__":
+  if sys.platform.startswith('win'):
+    freeze_support()
   reload(sys)
   if hasattr(sys, u'setdefaultencoding'):
     sys.setdefaultencoding(u'UTF-8')
-  if GM_Globals[GM_WINDOWS]:
+  if sys.platform.startswith('win'):
     win32_unicode_argv() # cleanup sys.argv on Windows
   sys.exit(ProcessGAMCommand(sys.argv))

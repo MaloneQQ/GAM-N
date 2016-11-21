@@ -1,3 +1,9 @@
+4.03.11
+
+Thanks to Jay, multithreading was changed to multiprocessing for gam batch and gam csv; this should increase performance.
+
+Gam variables can now be set on the command line, see GamCommands.txt for detaile.
+
 4.03.09
 
 Improvements to handling Google misreporting invalid group in gam print groups settings.
