@@ -1954,7 +1954,7 @@ def SetGlobalVariables():
           value = getBoolean()
         elif GC_VAR_INFO[itemName][GC_VAR_TYPE] == GC_TYPE_INTEGER:
           minVal, maxVal = GC_VAR_INFO[itemName][GC_VAR_LIMITS]
-          value = str(getInteger(minVal=minVal, maxVal=maxVal))
+          value = getInteger(minVal=minVal, maxVal=maxVal)
         else:
           value = getString(OB_STRING)
         GC_Defaults[itemName] = value
@@ -3440,7 +3440,7 @@ def doBatch():
 
 def runCmdForUsers(cmd, users, **kwargs):
   if (GC_Values[GC_AUTO_BATCH_MIN] < 0) and (len(users) > -GC_Values[GC_AUTO_BATCH_MIN]):
-    run_batch([[u'gam', u'user', user]+sys.argv[3:] for user in users])
+    run_batch([[u'gam', u'user', user]+CL_argv[CL_argvI-1:] for user in users])
   else:
     cmd(users, **kwargs)
 
@@ -12973,7 +12973,7 @@ def ProcessGAMCommand(args):
         unknownArgumentExit()
       sys.exit(GM_Globals[GM_SYSEXITRC])
     if (GC_Values[GC_AUTO_BATCH_MIN] > 0) and (len(users) > GC_Values[GC_AUTO_BATCH_MIN]):
-      run_batch([[u'gam', u'user', user]+sys.argv[3:] for user in users])
+      run_batch([[u'gam', u'user', user]+CL_argv[CL_argvI-1:] for user in users])
       sys.exit(GM_Globals[GM_SYSEXITRC])
     if command == u'transfer':
       transferWhat = getArgument()
