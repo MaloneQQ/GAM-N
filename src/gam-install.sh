@@ -99,9 +99,9 @@ case $gamos in
 esac
 
 if [ "$gamversion" == "latest" -o "$gamversion" == "prerelease" -o "$gamversion" == "draft" ]; then
-  release_url="https://api.github.com/repos/jay0lee/GAM/releases"
+  release_url="https://api.github.com/repos/taers232c/GAM-N/releases"
 else
-  release_url="https://api.github.com/repos/jay0lee/GAM/releases/tags/v$gamversion"
+  release_url="https://api.github.com/repos/taers232c/GAM-N/releases/tags/v$gamversion"
 fi
 
 echo_yellow "Checking GitHub URL $release_url for $gamversion GAM release..."
