@@ -1,3 +1,44 @@
+4.03.12
+
+Added memberscount, managerscount and ownerscount arguments to gam print groups; they cause the number of members/managers/owners to be shown,
+not the list of email addresses. If any of the members, managers or owners arguments are specified and countsonly is specified, only the counts will be shown.
+Added allfields argument to gam print groups; this selects all of the basic group settings and all of the extended groups settings.
+Added convertcrnl argument to gam print groups|resources; this converts carriage returns (CR) to "\r" and newlines (NL) to "\n" when writing CSV files.
+    gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])
+	[maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])] [convertcrnl] [delimiter <String>]
+	[members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
+
+    gam print resources [todrive] [allfields|<ResourceFieldName>*] [convertcrnl]
+
+Added delimiter argument to gam print datatransfers|filelist|printers|printjobs|tokens to allow specifying a field list delimiter other than a space.
+
+Added additional variables related to CSV files.
+    csv_input_column_delimiter
+	Column delimiter used when reading CSV files; this must be a single character
+	Default: ','
+	Environment variable: GAM_CSV_INPUT_COLUMN_DELIMITER 
+    csv_output_convert_cr_nl
+	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when writing CSV files
+	The commands gam print groups|resourses have an argument, convertcrnl, that can set this value to true.
+	Default: False
+	Environment variable: GAM_CSV_OUTPUT_CONVERT_CR_NL
+    csv_output_column_delimiter
+	Column delimiter used when writing CSV files; this must be a single character
+	The redirect csv <FileName> [append] [charset <CharSet>] [delimiter <Character>] can override this value.
+	Default: ','
+	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
+    csv_output_field_delimiter
+	Field list delimiter used when writing CSV output files; this must be a single character
+	With the default value of an empty string:
+	Each of the gam print courses|datatransfers|filelist|groups|printers|printjobs|tokend|users commands has a delimiter <String> argument that can override this value.
+	Default: ' '
+	Environment variable: GAM_CSV_OUTPUT_FIELD_DELIMITER
+    show_convert_cr_nl
+	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when showing data
+	Default: False
+	Environment variable: GAM_SHOW_CONVERT_CR_NL
+
+
 4.03.11
 
 Thanks to Jay, multithreading was changed to multiprocessing for gam batch and gam csv; this should increase performance.

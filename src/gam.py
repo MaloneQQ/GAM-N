@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.11'
+__version__ = u'4.03.12'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -196,6 +196,14 @@ GC_CHARSET = u'charset'
 GC_CLIENT_SECRETS_JSON = u'client_secrets_json'
 # GAM config directory containing client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt
 GC_CONFIG_DIR = u'config_dir'
+# Column delimiter in CSV input file
+GC_CSV_INPUT_COLUMN_DELIMITER = u'csv_input_column_delimiter'
+# Convert newlines in text fields to "\n" in CSV output file
+GC_CSV_OUTPUT_CONVERT_CR_NL = u'csv_output_convert_cr_nl'
+# Column delimiter in CSV output file
+GC_CSV_OUTPUT_COLUMN_DELIMITER = u'csv_output_column_delimiter'
+# Field list delimiter in CSV output file
+GC_CSV_OUTPUT_FIELD_DELIMITER = u'csv_output_field_delimiter'
 # custmerId from gam.cfg or retrieved from Google
 GC_CUSTOMER_ID = u'customer_id'
 # If debug_level > 0: extra_args[u'prettyPrint'] = True, httplib2.debuglevel = gam_debug_level, appsObj.debug = True
@@ -227,6 +235,8 @@ GC_NUM_THREADS = u'num_threads'
 GC_OAUTH2_TXT = u'oauth2_txt'
 # Path to oauth2service.json
 GC_OAUTH2SERVICE_JSON = u'oauth2service_json'
+# Convert newlines in text fields to "\n" in show commands
+GC_SHOW_CONVERT_CR_NL = u'show_convert_cr_nl'
 # When retrieving lists of Users from API, how many should be retrieved in each chunk
 GC_USER_MAX_RESULTS = u'user_max_results'
 
@@ -237,6 +247,10 @@ GC_Defaults = {
   GC_CHARSET: DEFAULT_CHARSET,
   GC_CLIENT_SECRETS_JSON: FN_CLIENT_SECRETS_JSON,
   GC_CONFIG_DIR: u'',
+  GC_CSV_INPUT_COLUMN_DELIMITER: u',',
+  GC_CSV_OUTPUT_CONVERT_CR_NL: FALSE,
+  GC_CSV_OUTPUT_COLUMN_DELIMITER: u',',
+  GC_CSV_OUTPUT_FIELD_DELIMITER: u' ',
   GC_CUSTOMER_ID: MY_CUSTOMER,
   GC_DEBUG_LEVEL: 0,
   GC_DEVICE_MAX_RESULTS: 500,
@@ -252,6 +266,7 @@ GC_Defaults = {
   GC_NUM_THREADS: 25,
   GC_OAUTH2_TXT: FN_OAUTH2_TXT,
   GC_OAUTH2SERVICE_JSON: FN_OAUTH2SERVICE_JSON,
+  GC_SHOW_CONVERT_CR_NL: FALSE,
   GC_USER_MAX_RESULTS: 500,
   }
 
@@ -279,6 +294,10 @@ GC_VAR_INFO = {
   GC_CHARSET: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_CHARSET'},
   GC_CLIENT_SECRETS_JSON: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'CLIENTSECRETS'},
   GC_CONFIG_DIR: {GC_VAR_TYPE: GC_TYPE_DIRECTORY, GC_VAR_ENVVAR: u'GAMUSERCONFIGDIR'},
+  GC_CSV_INPUT_COLUMN_DELIMITER: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_CSV_INPUT_COLUMN_DELIMITER', GC_VAR_LIMITS: (1, 1)},
+  GC_CSV_OUTPUT_CONVERT_CR_NL: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_CSV_OUTPUT_CONVERT_CR_NL', GC_VAR_SFFT: (FALSE, TRUE)},
+  GC_CSV_OUTPUT_COLUMN_DELIMITER: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_CSV_OUTPUT_COLUMN_DELIMITER', GC_VAR_LIMITS: (1, 1)},
+  GC_CSV_OUTPUT_FIELD_DELIMITER: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'GAM_CSV_OUTPUT_FIELD_DELIMITER', GC_VAR_LIMITS: (1, 1)},
   GC_CUSTOMER_ID: {GC_VAR_TYPE: GC_TYPE_STRING, GC_VAR_ENVVAR: u'CUSTOMER_ID'},
   GC_DEBUG_LEVEL: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_SIGFILE: u'debug.gam', GC_VAR_LIMITS: (0, None), GC_VAR_SFFT: (0, 4)},
   GC_DEVICE_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_DEVICE_MAX_RESULTS', GC_VAR_LIMITS: (1, 1000)},
@@ -294,6 +313,7 @@ GC_VAR_INFO = {
   GC_NUM_THREADS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_THREADS', GC_VAR_LIMITS: (1, None)},
   GC_OAUTH2_TXT: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'OAUTHFILE'},
   GC_OAUTH2SERVICE_JSON: {GC_VAR_TYPE: GC_TYPE_FILE, GC_VAR_ENVVAR: u'OAUTHSERVICEFILE'},
+  GC_SHOW_CONVERT_CR_NL: {GC_VAR_TYPE: GC_TYPE_BOOLEAN, GC_VAR_ENVVAR: u'GAM_SHOW_CONVERT_CR_NL', GC_VAR_SFFT: (FALSE, TRUE)},
   GC_USER_MAX_RESULTS: {GC_VAR_TYPE: GC_TYPE_INTEGER, GC_VAR_ENVVAR: u'GAM_USER_MAX_RESULTS', GC_VAR_LIMITS: (1, 500)},
   }
 
@@ -742,6 +762,7 @@ PHRASE_SELECTED = u'Selected'
 PHRASE_SERVICE_NOT_APPLICABLE = u'Service not applicable/Does not exist'
 PHRASE_STARTING_N_WORKER_THREADS = u'Starting {0} worker threads...\n'
 PHRASE_STARTING_THREAD = u'Starting thread'
+PHRASE_STRING_LENGTH = u'string length'
 PHRASE_THAT_MATCHED_QUERY = u'that matched query'
 PHRASE_THAT_MATCH_QUERY = u'that match query'
 PHRASE_TO = u'To'
@@ -1203,7 +1224,7 @@ def normalizeStudentGuardianEmailAddressOrUID(emailAddressOrUID):
     return emailAddressOrUID
   return normalizeEmailAddressOrUID(emailAddressOrUID)
 
-def getEmailAddress(noUid=False, emptyOK=False, optional=False):
+def getEmailAddress(noUid=False, minLen=1, optional=False):
   global CL_argvI
   if CL_argvI < CL_argvLen:
     emailAddress = CL_argv[CL_argvI].strip().lower()
@@ -1232,7 +1253,7 @@ def getEmailAddress(noUid=False, emptyOK=False, optional=False):
     if optional:
       CL_argvI += 1
       return None
-    elif emptyOK:
+    elif minLen == 0:
       CL_argvI += 1
       return u''
   elif optional:
@@ -1430,14 +1451,14 @@ def getGoogleSKUListMap():
     invalidChoiceExit(GOOGLE_SKU_CHOICES_MAP)
   missingArgumentExit(OB_SKU_ID_LIST)
 
-def integerLimits(minVal, maxVal):
+def integerLimits(minVal, maxVal, item=u'integer'):
   if (minVal is not None) and (maxVal is not None):
-    return u'integer {0}<=x<={1}'.format(minVal, maxVal)
+    return u'{0} {1}<=x<={2}'.format(item, minVal, maxVal)
   if minVal is not None:
-    return u'integer x>={0}'.format(minVal)
+    return u'{0} x>={1}'.format(item, minVal)
   if maxVal is not None:
-    return u'integer x<={0}'.format(maxVal)
-  return u'integer x'
+    return u'{0} x<={1}'.format(item, maxVal)
+  return u'{0} x'.format(item)
 
 def getInteger(minVal=None, maxVal=None):
   global CL_argvI
@@ -1501,7 +1522,7 @@ def getREPattern():
         usageErrorExit(u'{0} {1}: {2}'.format(OB_RE_PATTERN, PHRASE_ERROR, e))
   missingArgumentExit(OB_RE_PATTERN)
 
-def getString(item, checkBlank=False, emptyOK=False, optional=False):
+def getString(item, checkBlank=False, optional=False, minLen=1, maxLen=None):
   global CL_argvI
   if CL_argvI < CL_argvLen:
     argstr = CL_argv[CL_argvI]
@@ -1509,9 +1530,11 @@ def getString(item, checkBlank=False, emptyOK=False, optional=False):
       if checkBlank:
         if argstr.isspace():
           blankArgumentExit(item)
-      CL_argvI += 1
-      return argstr
-    if emptyOK or optional:
+      if (len(argstr) >= minLen) and ((maxLen is None) or (len(argstr) <= maxLen)):
+        CL_argvI += 1
+        return argstr
+      invalidArgumentExit(u'{0} for {1}'.format(integerLimits(minLen, maxLen, PHRASE_STRING_LENGTH), item))
+    if optional or (minLen == 0):
       CL_argvI += 1
       return u''
     emptyArgumentExit(item)
@@ -1520,7 +1543,7 @@ def getString(item, checkBlank=False, emptyOK=False, optional=False):
   missingArgumentExit(item)
 
 def getStringReturnInList(item):
-  argstr = getString(item, emptyOK=True)
+  argstr = getString(item, minLen=0)
   if argstr:
     return [argstr]
   return []
@@ -1528,7 +1551,7 @@ def getStringReturnInList(item):
 YYYYMMDD_FORMAT = u'%Y-%m-%d'
 YYYYMMDD_FORMAT_REQUIRED = u'yyyy-mm-dd'
 
-def getYYYYMMDD(emptyOK=False, returnTimeStamp=False):
+def getYYYYMMDD(minLen=1, returnTimeStamp=False):
   global CL_argvI
   if CL_argvI < CL_argvLen:
     argstr = CL_argv[CL_argvI].strip()
@@ -1541,7 +1564,7 @@ def getYYYYMMDD(emptyOK=False, returnTimeStamp=False):
         return timeStamp
       except ValueError:
         invalidArgumentExit(YYYYMMDD_FORMAT_REQUIRED)
-    elif emptyOK:
+    elif minLen == 0:
       CL_argvI += 1
       return u''
   missingArgumentExit(YYYYMMDD_FORMAT_REQUIRED)
@@ -1562,7 +1585,7 @@ def getYYYYMMDD_HHMM():
         invalidArgumentExit(YYYYMMDD_HHMM_FORMAT_REQUIRED)
   missingArgumentExit(YYYYMMDD_HHMM_FORMAT_REQUIRED)
 
-YYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
+YYYYMMDDTHHMMSS_FORMAT_REQUIRED = u'yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
 
 def getFullTime(returnDateTime=False):
   global CL_argvI
@@ -1577,8 +1600,8 @@ def getFullTime(returnDateTime=False):
         return (fullDateTime, tz, argstr.replace(u' ', u'T'))
       except iso8601.ParseError:
         pass
-      invalidArgumentExit(YYMMDDTHHMMSS_FORMAT_REQUIRED)
-  missingArgumentExit(YYMMDDTHHMMSS_FORMAT_REQUIRED)
+      invalidArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
+  missingArgumentExit(YYYYMMDDTHHMMSS_FORMAT_REQUIRED)
 
 EVENT_TIME_FORMAT_REQUIRED = u'allday yyyy-mm-dd | yyyy-mm-ddThh:mm:ss[.fff]Z|+hh:mm|-hh:mm'
 
@@ -1879,7 +1902,7 @@ def openCSVFileReader(filename):
   else:
     fieldnames = None
   f = openFile(filename)
-  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames)
+  csvFile = UnicodeDictReader(f, encoding=encoding, fieldnames=fieldnames, delimiter=str(GC_Values[GC_CSV_INPUT_COLUMN_DELIMITER]))
   return (f, csvFile)
 
 # Set global variables
@@ -3256,9 +3279,11 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
   csv.register_dialect(u'nixstdout', lineterminator=u'\n')
   if todrive:
     string_file = StringIO.StringIO()
-    writer = csv.DictWriter(string_file, fieldnames=titles, dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL)
+    writer = csv.DictWriter(string_file, fieldnames=titles,
+                            dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=str(GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER]))
   else:
-    writer = csv.DictWriter(sys.stdout, fieldnames=titles, dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL)
+    writer = csv.DictWriter(sys.stdout, fieldnames=titles,
+                            dialect=u'nixstdout', quoting=csv.QUOTE_MINIMAL, delimiter=str(GC_Values[GC_CSV_OUTPUT_COLUMN_DELIMITER]))
   try:
     writer.writerow(dict((item, item) for item in writer.fieldnames))
     writer.writerows(csvRows)
@@ -3286,23 +3311,30 @@ def writeCSVfile(csvRows, titles, list_type, todrive):
       import webbrowser
       webbrowser.open(file_url)
 
+def convertCRsNLs(value):
+  return value.replace(u'\r', u'\\r').replace(u'\n', u'\\n')
+
 def flattenJSON(structure, key=u'', path=u'', flattened=None, listLimit=None):
   if flattened is None:
     flattened = {}
   if not isinstance(structure, (dict, list)):
-    flattened[((path + u'.') if path else u'') + key] = structure
+    if isinstance(structure, (str, unicode)) and GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]:
+      flattened[((path+u'.') if path else u'')+key] = convertCRsNLs(structure)
+    else:
+      flattened[((path+u'.') if path else u'')+key] = structure
   elif isinstance(structure, list):
-    for i, item in enumerate(structure):
-      if listLimit and (i >= listLimit):
-        break
-      flattenJSON(item, u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened=flattened, listLimit=listLimit)
+    listLen = len(structure)
+    listLen = min(listLen, listLimit or listLen)
+    flattened[((path+u'.') if path else u'')+key] = listLen
+    for i in xrange(listLen):
+      flattenJSON(structure[i], u'{0}'.format(i), u'.'.join([item for item in [path, key] if item]), flattened, listLimit)
   else:
     for new_key, value in structure.items():
       if new_key in [u'kind', u'etag']:
         continue
       if value == NEVER_TIME:
         value = u'Never'
-      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened=flattened, listLimit=listLimit)
+      flattenJSON(value, new_key, u'.'.join([item for item in [path, key] if item]), flattened, listLimit)
   return flattened
 
 def showJSON(object_name, object_value, skip_objects=None, level=0, spacing=u''):
@@ -3345,7 +3377,16 @@ def showJSON(object_name, object_value, skip_objects=None, level=0, spacing=u'')
     if object_name is not None or unindentAfterLast:
       spacing = spacing[:-2]
   else:
-    printJSONValue(object_value)
+    if isinstance(object_value, (str, unicode)) and object_value.find(u'\n') >= 0:
+      if GC_Values[GC_SHOW_CONVERT_CR_NL]:
+        printJSONValue(convertCRsNLs(object_value))
+      else:
+        printBlankLine()
+        spacing += u'  '
+        printKeyValueList(spacing, [indentMultiLineText(object_value)])
+        spacing = spacing[:-2]
+    else:
+      printJSONValue(object_value)
 
 def doVersion(checkForArgs=True):
   forceCheck = simple = False
@@ -4385,7 +4426,7 @@ def doUpdateCustomer():
     myarg = getArgument()
     if myarg in ADDRESS_FIELDS_ARGUMENT_MAP:
       body.setdefault(u'postalAddress', {})
-      body[u'postalAddress'][ADDRESS_FIELDS_ARGUMENT_MAP[myarg]] = getString(OB_STRING, emptyOK=True)
+      body[u'postalAddress'][ADDRESS_FIELDS_ARGUMENT_MAP[myarg]] = getString(OB_STRING, minLen=0)
     elif myarg in [u'adminsecondaryemail', u'alternateemail']:
       body[u'alternateEmail'] = getEmailAddress(noUid=True)
     elif myarg in [u'phone', u'phonenumber']:
@@ -4489,16 +4530,19 @@ def doPrintDataTransfers():
   todrive = False
   titles = [u'id',]
   csvRows = []
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg in [u'olduser', u'oldowner']:
+    if myarg == u'todrive':
+      todrive = True
+    elif myarg in [u'olduser', u'oldowner']:
       oldOwnerUserId = convertEmailToUserID(getEmailAddress())
     elif myarg in [u'newuser', u'newowner']:
       newOwnerUserId = convertEmailToUserID(getEmailAddress())
     elif myarg == u'status':
       status = getChoice(DATA_TRANSFER_STATUS_MAP, mapChoice=True)
-    elif myarg == u'todrive':
-      todrive = True
+    elif myarg == u'delimiter':
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
     else:
       unknownArgumentExit()
   transfers = callGAPIpages(dt.transfers(), u'list', u'dataTransfers',
@@ -4516,7 +4560,7 @@ def doPrintDataTransfers():
       row[u'id'] = transfer[u'id']
       if u'applicationTransferParams' in transfer[u'applicationDataTransfers'][i]:
         for param in transfer[u'applicationDataTransfers'][i][u'applicationTransferParams']:
-          row[param[u'key']] = u','.join(param[u'value'])
+          row[param[u'key']] = delimiter.join(param[u'value'])
     for title in row:
       if title not in titles:
         titles.append(title)
@@ -5414,9 +5458,9 @@ def doUpdateCrosDevice():
       if up == u'orgUnitPath':
         update_body[up] = getOrgUnitPath()
       elif up == u'notes':
-        update_body[up] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
+        update_body[up] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
       else:
-        update_body[up] = getString(OB_STRING, emptyOK=up != u'annotatedAssetId')
+        update_body[up] = getString(OB_STRING, minLen=[0, 1][up == u'annotatedAssetId'])
     elif myarg == u'action':
       action_body[u'action'], deprovisionReason = getChoice(CROS_ACTION_CHOICES_MAP, mapChoice=True)
       if deprovisionReason:
@@ -5877,6 +5921,8 @@ GROUP_ATTRIBUTES = {
                                                                    u'allmanagerscanview': u'ALL_MANAGERS_CAN_VIEW',}}],
   }
 
+GROUP_FIELDS_WITH_CRS_NLS = [u'customFooterText', u'defaultMessageDenyNotificationText', u'description']
+
 def getGroupAttrValue(argument, gs_body):
   attrProperties = GROUP_ATTRIBUTES.get(argument)
   if not attrProperties:
@@ -5887,10 +5933,10 @@ def getGroupAttrValue(argument, gs_body):
   if attrType == GC_TYPE_BOOLEAN:
     gs_body[attrName] = getBoolean()
   elif attrType == GC_TYPE_STRING:
-    if attrName != u'customFooterText':
-      gs_body[attrName] = getString(OB_STRING, emptyOK=True)
+    if attrName in GROUP_FIELDS_WITH_CRS_NLS:
+      gs_body[attrName] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
     else:
-      gs_body[attrName] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
+      gs_body[attrName] = getString(OB_STRING, minLen=0)
   elif attrType == GC_TYPE_CHOICE:
     gs_body[attrName] = getChoice(attribute[u'choices'], mapChoice=True)
   elif attrType == GC_TYPE_EMAIL:
@@ -6016,11 +6062,11 @@ def doUpdateGroup():
       except googleapiclient.errors.HttpError:
         pass
   else: # clear
-    roles = []
+    roleList = []
     while CL_argvI < CL_argvLen:
-      roles.append(getChoice(GROUP_ROLES_MAP, mapChoice=True))
-    if roles:
-      roles = u','.join(sorted(set(roles)))
+      roleList.append(getChoice(GROUP_ROLES_MAP, mapChoice=True))
+    if roleList:
+      roles = u','.join(sorted(set(roleList)))
     else:
       roles = ROLE_MEMBER
     user_emails = getUsersToModify(u'group', group, member_type=roles)
@@ -6090,18 +6136,23 @@ def doInfoGroup(group_name=None):
     else:
       unknownArgumentExit()
   if cdfieldsList:
-    cdfieldsList = u','.join(set(cdfieldsList))
+    cdfields = u','.join(set(cdfieldsList))
+  else:
+    cdfields = None
   if gsfieldsList is None:
     getSettings = True
-  elif len(gsfieldsList) > 0:
+    gsfields = None
+  elif gsfieldsList:
     getSettings = True
-    gsfieldsList = u','.join(set(gsfieldsList))
-  basic_info = callGAPI(cd.groups(), u'get', groupKey=group_name, fields=cdfieldsList)
+    gsfields = u','.join(set(gsfieldsList))
+  else:
+    gsfields = None
+  basic_info = callGAPI(cd.groups(), u'get', groupKey=group_name, fields=cdfields)
   if getSettings and not GroupIsAbuseOrPostmaster(basic_info[u'email']):
     gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
     try:
       settings = callGAPI(gs.groups(), u'get', throw_reasons=[GAPI_AUTH_ERROR], retry_reasons=[GAPI_SERVICE_LIMIT],
-                          groupUniqueId=basic_info[u'email'], fields=gsfieldsList) # Use email address retrieved from cd since GS API doesn't support uid
+                          groupUniqueId=basic_info[u'email'], fields=gsfields) # Use email address retrieved from cd since GS API doesn't support uid
     except GAPI_authError:
       pass
   print u'Group: {0}'.format(group_name)
@@ -6152,11 +6203,12 @@ def doInfoGroup(group_name=None):
 
 def doPrintGroups():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
-  members = owners = managers = False
+  getSettings = sortHeaders = False
   customer = GC_Values[GC_CUSTOMER_ID]
   usedomain = usemember = None
-  aliasDelimiter = u' '
-  memberDelimiter = u'\n'
+  convertCRNL = GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
+  members = membersCountOnly = managers = managersCountOnly = owners = ownersCountOnly = False
   todrive = False
   cdfieldsList = []
   gsfieldsList = []
@@ -6165,8 +6217,7 @@ def doPrintGroups():
   csvRows = []
   addFieldTitleToCSVfile(u'email', GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
   maxResults = None
-  roles = []
-  getSettings = False
+  roleList = []
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
@@ -6179,9 +6230,17 @@ def doPrintGroups():
       customer = None
     elif myarg == u'maxresults':
       maxResults = getInteger(minVal=1)
+    elif myarg in [u'convertcrnl', u'converttextnl', u'convertfooternl']:
+      convertCRNL = True
     elif myarg == u'delimiter':
-      memberDelimiter = getString(OB_STRING)
-      aliasDelimiter = memberDelimiter
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+    elif myarg == u'allfields':
+      getSettings = sortHeaders = True
+      cdfieldsList = []
+      gsfieldsList = []
+      fieldsTitles = {}
+      for field in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
+        addFieldTitleToCSVfile(field, GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
     elif myarg in GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP:
       addFieldTitleToCSVfile(myarg, GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP, cdfieldsList, fieldsTitles, titles)
     elif myarg in GROUP_ATTRIBUTES:
@@ -6196,41 +6255,48 @@ def doPrintGroups():
         else:
           putArgumentBack()
           invalidChoiceExit(GROUP_ARGUMENT_TO_PROPERTY_TITLE_MAP.keys()+GROUP_ATTRIBUTES.keys())
-    elif myarg == u'members':
-      if myarg not in roles:
-        roles.append(ROLE_MEMBER)
-        addTitleToCSVfile(u'Members', titles)
-        members = True
-    elif myarg == u'owners':
-      if myarg not in roles:
-        roles.append(ROLE_OWNER)
-        addTitleToCSVfile(u'Owners', titles)
-        owners = True
-    elif myarg == u'managers':
-      if myarg not in roles:
-        roles.append(ROLE_MANAGER)
-        addTitleToCSVfile(u'Managers', titles)
-        managers = True
+    elif myarg in [u'members', u'memberscount']:
+      roleList.append(ROLE_MEMBER)
+      addTitlesToCSVfile([u'Members',], titles)
+      members = True
+      if myarg == u'memberscount':
+        membersCountOnly = True
+    elif myarg in [u'managers', u'managerscount']:
+      roleList.append(ROLE_MANAGER)
+      addTitlesToCSVfile([u'Managers',], titles)
+      managers = True
+      if myarg == u'managerscount':
+        managersCountOnly = True
+    elif myarg in [u'owners', u'ownerscount']:
+      roleList.append(ROLE_OWNER)
+      addTitlesToCSVfile([u'Owners',], titles)
+      owners = True
+      if myarg == u'ownerscount':
+        ownersCountOnly = True
+    elif myarg == u'countsonly':
+      membersCountOnly = managersCountOnly = ownersCountOnly = True
     elif myarg == u'settings':
       getSettings = True
     else:
       unknownArgumentExit()
-  cdfields = u','.join(set(cdfieldsList))
-  if len(gsfieldsList) > 0:
+  if cdfieldsList:
+    cdfields = u'nextPageToken,groups({0})'.format(u','.join(set(cdfieldsList)))
+  else:
+    cdfields = None
+  if gsfieldsList:
     getSettings = True
     gsfields = u','.join(set(gsfieldsList))
   elif getSettings:
     gsfields = None
   if getSettings:
     gs = buildGAPIObject(GAPI_GROUPSSETTINGS_API)
-  roles = u','.join(sorted(set(roles)))
+  roles = u','.join(sorted(set(roleList)))
   sys.stderr.write(u"Retrieving All Groups for G Suite account (may take some time on a large account)...\n")
   page_message = u'Got %%num_items%% groups: %%first_item%% - %%last_item%%\n'
   entityList = callGAPIpages(cd.groups(), u'list', u'groups',
                              page_message=page_message, message_attribute=u'email',
                              customer=customer, domain=usedomain, userKey=usemember,
-                             fields=u'nextPageToken,groups({0})'.format(cdfields),
-                             maxResults=maxResults)
+                             fields=cdfields, maxResults=maxResults)
   i = 0
   count = len(entityList)
   for groupEntity in entityList:
@@ -6240,7 +6306,9 @@ def doPrintGroups():
     for field in cdfieldsList:
       if field in groupEntity:
         if isinstance(groupEntity[field], list):
-          row[fieldsTitles[field]] = aliasDelimiter.join(groupEntity[field])
+          row[fieldsTitles[field]] = delimiter.join(groupEntity[field])
+        elif convertCRNL and field in GROUP_FIELDS_WITH_CRS_NLS:
+          row[fieldsTitles[field]] = convertCRsNLs(groupEntity[field])
         else:
           row[fieldsTitles[field]] = groupEntity[field]
     if roles:
@@ -6250,11 +6318,14 @@ def doPrintGroups():
                                    page_message=page_message, message_attribute=u'email',
                                    groupKey=groupEmail, roles=roles, fields=u'nextPageToken,members(email,id,role)', maxResults=GC_Values[GC_MEMBER_MAX_RESULTS])
       if members:
-        allMembers = []
+        membersList = []
+        membersCount = 0
       if managers:
-        allManagers = []
+        managersList = []
+        managersCount = 0
       if owners:
-        allOwners = []
+        ownersList = []
+        ownersCount = 0
       for member in groupMembers:
         member_email = member.get(u'email', member.get(u'id', None))
         if not member_email:
@@ -6264,23 +6335,33 @@ def doPrintGroups():
         if role:
           if role == ROLE_MEMBER:
             if members:
-              allMembers.append(member_email)
+              membersCount += 1
+              if not membersCountOnly:
+                membersList.append(member_email)
           elif role == ROLE_MANAGER:
             if managers:
-              allManagers.append(member_email)
+              managersCount += 1
+              if not managersCountOnly:
+                managersList.append(member_email)
           elif role == ROLE_OWNER:
             if owners:
-              allOwners.append(member_email)
+              ownersCount += 1
+              if not ownersCountOnly:
+                ownersList.append(member_email)
           elif members:
-            allMembers.append(member_email)
+            membersCount += 1
+            if not membersCountOnly:
+              membersList.append(member_email)
         elif members:
-          allMembers.append(member_email)
+          membersCount += 1
+          if not membersCountOnly:
+            membersList.append(member_email)
       if members:
-        row[u'Members'] = memberDelimiter.join(allMembers)
+        row[u'Members'] = membersCount if membersCountOnly else delimiter.join(membersList)
       if managers:
-        row[u'Managers'] = memberDelimiter.join(allManagers)
+        row[u'Managers'] = managersCount if managersCountOnly else delimiter.join(managersList)
       if owners:
-        row[u'Owners'] = memberDelimiter.join(allOwners)
+        row[u'Owners'] = ownersCount if ownersCountOnly else delimiter.join(ownersList)
     if getSettings and not GroupIsAbuseOrPostmaster(groupEmail):
       sys.stderr.write(u" Retrieving Settings for group %s%s...\r\n" % (groupEmail, currentCount(i, count)))
       settings = callGAPI(gs.groups(), u'get',
@@ -6296,10 +6377,15 @@ def doPrintGroups():
             setting_value = u''
           if key not in titles:
             addTitleToCSVfile(key, titles)
-          row[key] = setting_value
+          if convertCRNL and key in GROUP_FIELDS_WITH_CRS_NLS:
+            row[key] = convertCRsNLs(setting_value)
+          else:
+            row[key] = setting_value
       else:
         sys.stderr.write(u" Settings unavailable for group %s (%s/%s)...\r\n" % (groupEmail, i, count))
     csvRows.append(row)
+  if sortHeaders:
+    sortCSVTitles([u'Email',], titles)
   writeCSVfile(csvRows, titles, u'Groups', todrive)
 
 def getGroupMembers(cd, groupEmail, membersList, membersSet, i, count, noduplicates, recursive, level):
@@ -6417,7 +6503,9 @@ def doPrintGroupMembers():
     addTitlesToCSVfile([u'name'], titles)
     removeTitlesFromCSVfile([u'name.fullName'], titles)
   if userFieldsList:
-    userFieldsList = u','.join(set(userFieldsList)).replace(u'.', u'/')
+    userFields = u','.join(set(userFieldsList)).replace(u'.', u'/')
+  else:
+    userFields = None
   if not groups_to_get:
     groups_to_get = callGAPIpages(cd.groups(), u'list', u'groups', message_attribute=u'email',
                                   customer=customer, domain=domain, userKey=usemember, fields=u'nextPageToken,groups(email)')
@@ -6447,7 +6535,7 @@ def doPrintGroupMembers():
           try:
             mbinfo = callGAPI(cd.users(), u'get',
                               throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_FORBIDDEN],
-                              userKey=member[u'id'], fields=userFieldsList)
+                              userKey=member[u'id'], fields=userFields)
             if membernames:
               row[u'name'] = mbinfo[u'name'][u'fullName']
               del mbinfo[u'name'][u'fullName']
@@ -6677,8 +6765,11 @@ RESCAL_ARGUMENT_TO_PROPERTY_MAP = {
   u'type': [u'resourceType'],
   }
 
+RESOURCE_FIELDS_WITH_CRS_NLS = [u'resourceDescription']
+
 def doPrintResourceCalendars():
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
+  convertCRNL = GC_Values[GC_CSV_OUTPUT_CONVERT_CR_NL]
   todrive = False
   fieldsList = []
   fieldsTitles = {}
@@ -6696,6 +6787,8 @@ def doPrintResourceCalendars():
         addFieldToCSVfile(field, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
     elif myarg in RESCAL_ARGUMENT_TO_PROPERTY_MAP:
       addFieldToCSVfile(myarg, RESCAL_ARGUMENT_TO_PROPERTY_MAP, fieldsList, fieldsTitles, titles)
+    elif myarg in [u'convertcrnl', u'converttextnl']:
+      convertCRNL = True
     else:
       unknownArgumentExit()
   if not fieldsList:
@@ -6709,7 +6802,10 @@ def doPrintResourceCalendars():
   for resource in resources:
     row = {}
     for field in fieldsList:
-      row[fieldsTitles[field]] = resource.get(field, u'')
+      if convertCRNL and field in RESOURCE_FIELDS_WITH_CRS_NLS:
+        row[fieldsTitles[field]] = convertCRsNLs(resource.get(field, u''))
+      else:
+        row[fieldsTitles[field]] = resource.get(field, u'')
     csvRows.append(row)
   writeCSVfile(csvRows, titles, u'Resources', todrive)
 
@@ -6998,10 +7094,10 @@ def doPrintShowUserSchemas(csvFormat):
     if not csvFormat:
       _showSchema(schema)
     else:
-      row = {u'fields.Count': len(schema[u'fields'])}
+      row = {u'fields': len(schema[u'fields'])}
       addRowTitlesToCSVfile(flattenJSON(schema, flattened=row), csvRows, titles)
   if csvFormat:
-    sortCSVTitles([u'schemaId', u'schemaName', u'fields.Count'], titles)
+    sortCSVTitles([u'schemaId', u'schemaName', u'fields'], titles)
     writeCSVfile(csvRows, titles, u'User Schemas', todrive)
 
 ADDRESS_TYPES = [u'custom', u'home', u'other', u'work']
@@ -7150,10 +7246,10 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
       up = UPDATE_USER_ARGUMENT_TO_PROPERTY_MAP[myarg]
       if up == u'givenName':
         body.setdefault(u'name', {})
-        body[u'name'][up] = getString(OB_STRING, emptyOK=True)
+        body[u'name'][up] = getString(OB_STRING, minLen=0)
       elif up == u'familyName':
         body.setdefault(u'name', {})
-        body[u'name'][up] = getString(OB_STRING, emptyOK=True)
+        body[u'name'][up] = getString(OB_STRING, minLen=0)
       elif up == u'password':
         need_password = False
         body[up] = getString(OB_STRING)
@@ -7181,11 +7277,11 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           entry[u'customType'] = getString(OB_STRING)
         if checkArgumentPresent(UNSTRUCTURED_FORMATTED_ARGUMENT):
           entry[u'sourceIsStructured'] = False
-          entry[u'formatted'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
+          entry[u'formatted'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
         while CL_argvI < CL_argvLen:
           argument = getArgument()
           if argument in ADDRESS_ARGUMENT_TO_FIELD_MAP:
-            value = getString(OB_STRING, emptyOK=True)
+            value = getString(OB_STRING, minLen=0)
             if value:
               entry[ADDRESS_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument == u'notprimary':
@@ -7211,7 +7307,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           entry[u'customProtocol'] = getString(OB_STRING)
         # Backwards compatability: notprimary|primary on either side of IM address
         entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
-        entry[u'im'] = getString(OB_STRING, emptyOK=True)
+        entry[u'im'] = getString(OB_STRING, minLen=0)
         entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=entry[u'primary'], mapChoice=True)
         appendItemToBodyList(body, up, entry, u'im')
       elif up == u'notes':
@@ -7223,7 +7319,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
         if checkArgumentPresent(FILE_ARGUMENT):
           entry[u'value'] = readFile(getString(OB_FILE_NAME), encoding=GM_Globals[GM_SYS_ENCODING])
         else:
-          entry[u'value'] = getString(OB_STRING, emptyOK=True).replace(u'\\n', u'\n')
+          entry[u'value'] = getString(OB_STRING, minLen=0).replace(u'\\n', u'\n')
         body[up] = entry
       elif up == u'organizations':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
@@ -7237,7 +7333,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           elif argument == u'customtype':
             entry[u'customType'] = getString(OB_STRING)
           elif argument in ORGANIZATION_ARGUMENT_TO_FIELD_MAP:
-            value = getString(OB_STRING, emptyOK=True)
+            value = getString(OB_STRING, minLen=0)
             if value:
               entry[ORGANIZATION_ARGUMENT_TO_FIELD_MAP[argument]] = value
           elif argument == u'notprimary':
@@ -7260,7 +7356,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
             if entry[u'type'] == u'custom':
               entry[u'customType'] = getString(OB_STRING)
           elif argument == u'value':
-            entry[u'value'] = getString(OB_STRING, emptyOK=True)
+            entry[u'value'] = getString(OB_STRING, minLen=0)
           elif argument == u'notprimary':
             break
           elif argument == u'primary':
@@ -7280,7 +7376,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           entry[u'type'] = u'custom'
         else:
           entry[u'type'] = entry[u'type'].lower()
-        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        entry[u'value'] = getString(OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
       elif up == u'emails':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
@@ -7293,7 +7389,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           entry[u'type'] = u'custom'
         else:
           entry[u'type'] = entry[u'type'].lower()
-        entry[u'address'] = getEmailAddress(noUid=True, emptyOK=True)
+        entry[u'address'] = getEmailAddress(noUid=True, minLen=0)
         appendItemToBodyList(body, up, entry, u'address')
       elif up == u'externalIds':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
@@ -7306,7 +7402,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           entry[u'type'] = u'custom'
         else:
           entry[u'type'] = entry[u'type'].lower()
-        entry[u'value'] = getString(OB_STRING, emptyOK=True)
+        entry[u'value'] = getString(OB_STRING, minLen=0)
         appendItemToBodyList(body, up, entry, u'value')
       elif up == u'websites':
         if checkArgumentPresent(CLEAR_NONE_ARGUMENT):
@@ -7319,7 +7415,7 @@ def getUserAttributes(cd, updateCmd=False, noUid=False):
           entry[u'type'] = u'custom'
         else:
           entry[u'type'] = entry[u'type'].lower()
-        entry[u'value'] = getString(OB_URL, emptyOK=True)
+        entry[u'value'] = getString(OB_URL, minLen=0)
         entry[u'primary'] = getChoice(PRIMARY_NOTPRIMARY_CHOICE_MAP, defaultChoice=False, mapChoice=True)
         appendItemToBodyList(body, up, entry, u'value')
     elif myarg == u'clearschema':
@@ -7446,7 +7542,7 @@ def doInfoUser(user_email=None):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   if user_email is None:
     if CL_argvI < CL_argvLen:
-      user_email = getEmailAddress(optional=True, emptyOK=True)
+      user_email = getEmailAddress(optional=True, minLen=0)
     else:
       storage = oauth2client.file.Storage(GC_Values[GC_OAUTH2_TXT])
       credentials = storage.get()
@@ -7503,11 +7599,11 @@ def doInfoUser(user_email=None):
     else:
       unknownArgumentExit()
   if fieldsList:
-    fieldsList = u','.join(set(fieldsList)).replace(u'.', u'/')
+    fields = u','.join(set(fieldsList)).replace(u'.', u'/')
   else:
-    fieldsList = None
+    fields = None
   user = callGAPI(cd.users(), u'get',
-                  userKey=user_email, projection=projection, customFieldMask=customFieldMask, viewType=viewType, fields=fieldsList)
+                  userKey=user_email, projection=projection, customFieldMask=customFieldMask, viewType=viewType, fields=fields)
   print u'User: %s' % user[u'primaryEmail']
   if u'name' in user and u'givenName' in user[u'name']:
     print convertUTF8(u'First Name: %s' % user[u'name'][u'givenName'])
@@ -7759,16 +7855,24 @@ def doPrintUsers():
   customFieldMask = None
   sortHeaders = getGroupFeed = getLicenseFeed = email_parts = False
   viewType = deleted_only = orderBy = sortOrder = None
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
-    if myarg in PROJECTION_CHOICES_MAP:
-      projection = myarg
-      sortHeaders = True
-      fieldsList = []
-    elif myarg == u'allfields':
-      projection = u'basic'
-      sortHeaders = True
-      fieldsList = []
+    if myarg == u'todrive':
+      todrive = True
+    elif myarg == u'domain':
+      domain = getString(OB_DOMAIN_NAME).lower()
+      customer = None
+    elif myarg == u'query':
+      query = getString(OB_QUERY)
+    elif myarg in [u'deletedonly', u'onlydeleted']:
+      deleted_only = True
+    elif myarg == u'orderby':
+      orderBy = getChoice(USERS_ORDERBY_CHOICES_MAP, mapChoice=True)
+    elif myarg in SORTORDER_CHOICES_MAP:
+      sortOrder = SORTORDER_CHOICES_MAP[myarg]
+    elif myarg == u'userview':
+      viewType = u'domain_public'
     elif myarg in [u'custom', u'schemas']:
       fieldsList.append(u'customSchemas')
       customFieldMask = getString(OB_SCHEMA_NAME_LIST).replace(u' ', u',')
@@ -7777,21 +7881,16 @@ def doPrintUsers():
         projection = u'full'
       else:
         projection = u'custom'
-    elif myarg == u'todrive':
-      todrive = True
-    elif myarg in [u'deletedonly', u'onlydeleted']:
-      deleted_only = True
-    elif myarg == u'orderby':
-      orderBy = getChoice(USERS_ORDERBY_CHOICES_MAP, mapChoice=True)
-    elif myarg == u'userview':
-      viewType = u'domain_public'
-    elif myarg in SORTORDER_CHOICES_MAP:
-      sortOrder = SORTORDER_CHOICES_MAP[myarg]
-    elif myarg == u'domain':
-      domain = getString(OB_DOMAIN_NAME).lower()
-      customer = None
-    elif myarg == u'query':
-      query = getString(OB_QUERY)
+    elif myarg == u'delimiter':
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+    elif myarg in PROJECTION_CHOICES_MAP:
+      projection = myarg
+      sortHeaders = True
+      fieldsList = []
+    elif myarg == u'allfields':
+      projection = u'basic'
+      sortHeaders = True
+      fieldsList = []
     elif myarg in USER_ARGUMENT_TO_PROPERTY_MAP:
       if not fieldsList:
         fieldsList = [u'primaryEmail',]
@@ -7842,12 +7941,7 @@ def doPrintUsers():
       userEmail = user[u'primaryEmail']
       sys.stderr.write(u"Getting Group Membership for %s%s" % (userEmail, currentCountNL(i, count)))
       groups = callGAPIpages(cd.groups(), u'list', u'groups', userKey=userEmail)
-      grouplist = u''
-      for groupname in groups:
-        grouplist += groupname[u'email']+u' '
-      if grouplist[-1:] == u' ':
-        grouplist = grouplist[:-1]
-      user.update(Groups=grouplist)
+      user[u'Groups'] = delimiter.join([groupname[u'email'] for groupname in groups])
   if getLicenseFeed:
     titles.append(u'Licenses')
     licenses = doPrintLicenses(return_list=True)
@@ -7857,7 +7951,7 @@ def doPrintUsers():
         for u_license in licenses:
           if u_license[u'userId'].lower() == user[u'primaryEmail'].lower():
             user_licenses.append(u_license[u'skuId'])
-        user.update(Licenses=u' '.join(user_licenses))
+        user[u'Licenses'] = delimiter.join(user_licenses)
   writeCSVfile(csvRows, titles, u'Users', todrive)
 
 SITEVERIFICATION_SITE_TYPE_INET_DOMAIN = u'INET_DOMAIN'
@@ -8220,7 +8314,7 @@ def doPrintCourses():
   teacherId = None
   studentId = None
   get_aliases = False
-  aliasesDelimiter = u' '
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'teacher':
@@ -8232,7 +8326,7 @@ def doPrintCourses():
     elif myarg in [u'alias', u'aliases']:
       get_aliases = True
     elif myarg == u'delimiter':
-      aliasesDelimiter = getString(OB_STRING)
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
     else:
       unknownArgumentExit()
   sys.stderr.write(u'Retrieving courses for organization (may take some time for large accounts)...\n')
@@ -8248,7 +8342,7 @@ def doPrintCourses():
       i += 1
       sys.stderr.write(u'Getting aliases for course %s%s' % (course[u'id'], currentCountNL(i, count)))
       course_aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases', courseId=course[u'id'])
-      course[u'Aliases'] = aliasesDelimiter.join([alias[u'alias'][2:] for alias in course_aliases])
+      course[u'Aliases'] = delimiter.join([alias[u'alias'][2:] for alias in course_aliases])
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 ADD_REMOVE_PARTICIPANT_TYPES_MAP = {
@@ -8544,6 +8638,7 @@ def doPrintPrinters():
   printer_type = None
   connection_status = None
   extra_fields = None
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'query':
@@ -8556,6 +8651,8 @@ def doPrintPrinters():
       extra_fields = getString(OB_STRING)
     elif myarg == u'todrive':
       todrive = True
+    elif myarg == u'delimiter':
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
     else:
       unknownArgumentExit()
   printers = callGCP(cp.printers(), u'list',
@@ -8564,7 +8661,7 @@ def doPrintPrinters():
     printer[u'createTime'] = datetime.datetime.fromtimestamp(int(printer[u'createTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
     printer[u'accessTime'] = datetime.datetime.fromtimestamp(int(printer[u'accessTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
     printer[u'updateTime'] = datetime.datetime.fromtimestamp(int(printer[u'updateTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
-    printer[u'tags'] = u' '.join(printer[u'tags'])
+    printer[u'tags'] = delimiter.join(printer[u'tags'])
     addRowTitlesToCSVfile(flattenJSON(printer), csvRows, titles)
   writeCSVfile(csvRows, titles, u'Printers', todrive)
 
@@ -8773,12 +8870,15 @@ def doPrintPrintJobs():
   csvRows = []
   printerid = None
   parameters = initPrintjobListParameters()
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
       todrive = True
     elif myarg in [u'printer', u'printerid']:
       printerid = getString(OB_PRINTER_ID)
+    elif myarg == u'delimiter':
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
     else:
       getPrintjobListParameters(myarg, parameters)
   if parameters[u'sortorder'] and (parameters[u'ascDesc'] == u'DESCENDING'):
@@ -8812,7 +8912,7 @@ def doPrintPrintJobs():
           continue
       job[u'createTime'] = datetime.datetime.fromtimestamp(int(job[u'createTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
       job[u'updateTime'] = datetime.datetime.fromtimestamp(int(job[u'updateTime'])/1000).strftime(u'%Y-%m-%d %H:%M:%S')
-      job[u'tags'] = u' '.join(job[u'tags'])
+      job[u'tags'] = delimiter.join(job[u'tags'])
       addRowTitlesToCSVfile(flattenJSON(job), csvRows, titles)
   writeCSVfile(csvRows, titles, u'Print Jobs', todrive)
 
@@ -9433,6 +9533,7 @@ def printDriveActivity(users):
                          drive_fileId=drive_fileId, pageSize=GC_Values[GC_ACTIVITY_MAX_RESULTS])
     while feed:
       addRowTitlesToCSVfile(flattenJSON(feed.popleft()[u'combinedEvent']), csvRows, titles)
+  sortCSVTitles([u'user.name', u'user.permissionId', u'target.id', u'target.name', u'target.mimeType'], titles)
   writeCSVfile(csvRows, titles, u'Drive Activity', todrive)
 
 def printDriveSettings(users):
@@ -9766,7 +9867,7 @@ def printDriveFileList(users):
             if attrib not in titles:
               titles.append(attrib)
             if isinstance(f_file[attrib][0], (str, unicode, int, bool)):
-              row[attrib] = u' '.join(f_file[attrib])
+              row[attrib] = delimiter.join(f_file[attrib])
             else:
               row[attrib] = len(f_file[attrib])
               for j, l_attrib in enumerate(f_file[attrib]):
@@ -9819,6 +9920,7 @@ def printDriveFileList(users):
   query = ME_IN_OWNERS
   fileIdSelection = None
   body, parameters = initializeDriveFileAttributes()
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'todrive':
@@ -9848,6 +9950,8 @@ def printDriveFileList(users):
       addFieldToCSVfile(myarg, {myarg: [DRIVEFILE_FIELDS_CHOICES_MAP[myarg]]}, fieldsList, fieldsTitles, titles)
     elif myarg in DRIVEFILE_LABEL_CHOICES_MAP:
       addFieldToCSVfile(myarg, {myarg: [DRIVEFILE_LABEL_CHOICES_MAP[myarg]]}, labelsList, fieldsTitles, titles)
+    elif myarg == u'delimiter':
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
     else:
       unknownArgumentExit()
   if fieldsList or labelsList:
@@ -10813,12 +10917,15 @@ def printShowTokens(entityType, users, csvFormat):
     titles = [u'user', u'clientId', u'displayText', u'anonymous', u'nativeApp', u'userKey', u'scopes']
     csvRows = []
   clientId = None
+  delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if csvFormat and myarg == u'todrive':
       todrive = True
     elif myarg == u'clientid':
       clientId = commonClientIds(getString(OB_CLIENT_ID))
+    elif myarg == u'delimiter':
+      delimiter = getString(OB_STRING, minLen=1, maxLen=1)
     elif not entityType:
       putArgumentBack()
       entityType, users = getEntityToModify()
@@ -10854,7 +10961,7 @@ def printShowTokens(entityType, users, csvFormat):
         if jcount == 0:
           continue
         for token in results:
-          row = {u'user': user, u'scopes': u' '.join(token.get(u'scopes', []))}
+          row = {u'user': user, u'scopes': delimiter.join(token.get(u'scopes', []))}
           for item in token:
             if item not in [u'scopes']:
               row[item] = token.get(item, u'')
@@ -12145,10 +12252,10 @@ def _processSignature(tagReplacements, signature, html):
 def getSendAsAttributes(myarg, body, tagReplacements):
   if myarg == u'replace':
     matchTag = getString(OB_TAG)
-    matchReplacement = getString(OB_STRING, emptyOK=True)
+    matchReplacement = getString(OB_STRING, minLen=0)
     tagReplacements[matchTag] = matchReplacement
   elif myarg == u'name':
-    body[u'displayName'] = getString(OB_NAME, emptyOK=True)
+    body[u'displayName'] = getString(OB_NAME, minLen=0)
   elif myarg == u'replyto':
     body[u'replyToAddress'] = getEmailAddress(noUid=True)
   elif myarg == u'default':
@@ -12175,7 +12282,7 @@ def addUpdateSendAs(users, addCmd):
         encoding = getCharSet()
         signature = readFile(filename, encoding=encoding)
       else:
-        signature = getString(OB_STRING, emptyOK=True)
+        signature = getString(OB_STRING, minLen=0)
     elif myarg == u'html':
       html = True
     else:
@@ -12300,7 +12407,7 @@ def setSignature(users):
     encoding = getCharSet()
     signature = readFile(filename, encoding=encoding)
   else:
-    signature = getString(OB_STRING, emptyOK=True)
+    signature = getString(OB_STRING, minLen=0)
   body = {}
   html = primary = False
   while CL_argvI < CL_argvLen:
@@ -12415,7 +12522,7 @@ def setVacation(users):
         message = readFile(filename, encoding=encoding)
       elif myarg == u'replace':
         matchTag = getString(OB_TAG)
-        matchReplacement = getString(OB_STRING, emptyOK=True)
+        matchReplacement = getString(OB_STRING, minLen=0)
         tagReplacements[matchTag] = matchReplacement
       elif myarg == u'html':
         responseBodyType = u'responseBodyHtml'

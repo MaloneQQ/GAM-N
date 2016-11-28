@@ -20,9 +20,9 @@ Primatives
 <DataTransferService> ::= googledrive|gdrive|drive|"drive and docs"
 <ProductID> ::= Google-Apps|Google-Drive-storage|Google-Vault|Google-Coordinate
 <SKUID> ::=
-	apps|gafb|gafw|Google-Apps-For-Business|
+	apps|gafb|gafw|gsbasic|Google-Apps-For-Business|
 	gams|Google-Apps-For-Postini|
-	gau|unlimited|d4w|dfw|Google-Apps-Unlimited|
+	gau|unlimited|d4w|dfw|gsbusiness|Google-Apps-Unlimited|
 	lite|Google-Apps-Lite|
 	drive-20gb|drive20gb|20gb|Google-Drive-storage-20GB|
 	drive-50gb|drive50gb|50gb|Google-Drive-storage-50GB|
@@ -286,6 +286,13 @@ Named items
 <PrintJobOrderByFieldName> ::=
 	create_time|status|title
 
+<ResourceFieldName> ::=
+	description|
+	email|
+	id|
+	name|
+	type
+
 <UserFieldName> ::=
 	addresses|address|
 	agreedtoterms|agreed2terms|
@@ -528,6 +535,26 @@ config_dir
 	GAM config directory containing client_secrets.json, oauth2.txt, oauth2service.json, extra_args.txt
 	Default: GamPath
 	Environment variable: GAMUSERCONFIGDIR
+csv_input_column_delimiter
+	Column delimiter used when reading CSV files; this must be a single character
+	Default: ','
+	Environment variable: GAM_CSV_INPUT_COLUMN_DELIMITER 
+csv_output_convert_cr_nl
+	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when writing CSV files
+	The commands gam print groups|resourses have an argument, convertcrnl, that can set this value to true.
+	Default: False
+	Environment variable: GAM_CSV_OUTPUT_CONVERT_CR_NL
+csv_output_column_delimiter
+	Column delimiter used when writing CSV files; this must be a single character
+	The redirect csv <FileName> [append] [charset <CharSet>] [delimiter <Character>] can override this value.
+	Default: ','
+	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
+csv_output_field_delimiter
+	Field list delimiter used when writing CSV output files; this must be a single character
+	With the default value of an empty string:
+	Each of the gam print courses|filelist|groups|printers|printjobs|tokend|users commands has a delimiter <String> argument that can override this value.
+	Default: ' '
+	Environment variable: GAM_CSV_OUTPUT_FIELD_DELIMITER
 customer_id
 	Google Custmer ID
 	Default: Blank
@@ -585,6 +612,10 @@ oauth2service_json
 	Path to oauth2service.json
 	Default: GamConfigDir/oauth2service.json
 	Environment variable: OAUTHSERVICEFILE
+show_convert_cr_nl
+	Convert carriage returns (CR) to "\r" and newlines (NL) to "\n" when showing data
+	Default: False
+	Environment variable: GAM_SHOW_CONVERT_CR_NL
 user_max_results
 	When retrieving lists of Users from API, how many should be retrieved in each chunk
 	Default: 500
@@ -654,7 +685,7 @@ gam update customer [adminsecondaryemail|alternateemail <EmailAddress>] [languag
 
 gam create datatransfer|transfer <OldOwnerID> <DataTransferService> <NewOwnerID> (<ParameterKey> <ParameterValue>)*
 gam info datatransfer|transfer <TransferID>
-gam print datatransfers|transfers [todrive] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>]
+gam print datatransfers|transfers [todrive] [olduser|oldowner <UserItem>] [newuser|newowner <UserItem>] [status <String>] [delimiter <String>]
 
 gam print transferapps
 
@@ -742,8 +773,8 @@ gam info group <GroupItem> [nousers] [noaliases] [groups] <GroupFieldName>* [fie
 gam update group <GroupItem> clear [member] [manager] [owner]
 
 gam print groups [todrive] ([domain <DomainName>] [member <UserItem>])
-	[maxresults <Number>] [delimiter <String>]
-	[members] [managers] [owners] [settings] <GroupFieldName>* [fields <GroupFieldNameList>]
+	[maxresults <Number>] [allfields|([settings] <GroupFieldName>* [fields <GroupFieldNameList>])] [convertcrnl] [delimiter <String>]
+	[members|memberscount] [managers|managerscount] [owners|ownerscount] [countsonly]
 
 gam print group-members|groups-members [todrive] ([domain <DomainName>] [member <UserItem>])|[group <GroupItem>]
 	[membernames] <MembersFieldName>* [fields <MembersFieldNameList>] [userfields <UserFieldNameList>] [recursive [noduplicates]]
@@ -758,7 +789,7 @@ gam create resource <ResourceID> <Name> [description <String>] [type <String>]
 gam update resource <ResourceID> [name <Name>] [description <String>] [type <String>]
 gam delete resource <ResourceID>
 gam info resource <ResourceID>
-gam print resources [todrive] [allfields] [id] [name] [description] [email] [type]
+gam print resources [todrive] [allfields|<ResourceFieldName>*] [convertcrnl]
 
 gam create schema|schemas <SchemaName> <SchemaFieldDefinition>+
 gam update schema <SchemaName> <SchemaFieldDefinition>* (deletefield <FieldName>)*
@@ -776,7 +807,7 @@ gam info user [<UserItem>] [noaliases] [nogroups] [nolicenses|nolicences] [nosch
 gam print users [todrive] ([domain <DomainName>] [query <QueryUser>] [deleted_only|only_deleted])
 	[groups] [license|licenses|licence|licences] [emailpart|emailparts|username] [schemas|custom all|<SchemaNameList>]
 	[orderby <UserOrderByFieldName> [ascending|descending]] [userview]
-	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>]
+	[basic|full|allfields | <UserFieldName>* | fields <UserFieldNameList>] [delimiter <String>] 
 gam <UserTypeEntity> print
 
 Summary of printing:
@@ -812,7 +843,7 @@ gam printer register
 gam update printer <PrinterID> <PrinterAttributes>+
 gam delete printer <PrinterID>
 gam info printer <PrinterID> [everything]
-gam print printers [todrive] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>]
+gam print printers [todrive] [query <QueryPrinter>] [type <String>] [status <String>] [extrafields <String>] [delimiter <String>]
 
 gam printer <PrinterID> add user|manager|owner <EmailAddress>|[domain:]<DomainName>|public
 gam printer <PrinterID> delete <EmailAddress>|[domain:]<DomainName>|public
@@ -833,7 +864,7 @@ gam print printjobs [todrive] [printer|printerid <PrinterID>]
 	[status <PrintJobStatus>]
 	[orderby <PrintJobOrderByFieldName> [ascending|descending]]
 	[owner|user <EmailAddress>]
-	[limit <Number>]
+	[limit <Number>] [delimiter <String>]
 
 gam <UserTypeEntity> delete|del asp|asps|applicationspecificpasswords <AspID>
 gam <UserTypeEntity> show asps|asp|applicationspecificpasswords
@@ -856,7 +887,7 @@ gam <UserTypeEntity> transfer seccals <UserItem> [keepuser]
 gam <UserTypeEntity> print|show driveactivity [todrive] [fileid <DriveFileID>] [folderid <DriveFolderID>]
 gam <UserTypeEntity> print|show drivesettings [todrive]
 gam <UserTypeEntity> print|show filelist [todrive] [anyowner] [query <QueryDriveFile>] [fullquery <QueryDriveFile>] [select <DriveFileEntity>] [depth <Number>]
-	[filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])*
+	[filepath] [allfields|<DriveFieldName>*] (orderby <DriveOrderByFieldName> [ascending|descending])* [delimiter <String>]
 
 gam <UserTypeEntity> show fileinfo <DriveFileEntity> [filepath] [allfields|<DriveFieldName>*]
 gam <UserTypeEntity> show filerevisions <DriveFileEntity>
@@ -896,8 +927,8 @@ gam <UserTypeEntity> show profile
 
 gam <UserTypeEntity> delete|del token|tokens clientid <ClientID>
 gam <UserTypeEntity> show tokens|token [clientid <ClientID>]
-gam <UserTypeEntity> print tokens|token [todrive] [clientid <ClientID>]
-gam print tokens|token [todrive] [clientid <ClientID>] [<UserTypeEntity>]
+gam <UserTypeEntity> print tokens|token [todrive] [clientid <ClientID>] [delimiter <String>]
+gam print tokens|token [todrive] [clientid <ClientID>] [delimiter <String>] [<UserTypeEntity>]
 
 gam <UserTypeEntity> update user <UserAttrubutes>
 
