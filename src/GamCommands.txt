@@ -374,7 +374,7 @@ Specify a collection of Users by directly specifying them or by specifiying item
 		(students <CourseID>)|
 		(teachers <CourseID>)|
 		(file <FileName> [charset <Charset>] [delimiter <String>])|
-		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
+		(csvfile <FileName>(:<FieldName>)+ [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* [delimiter <String>])|
 		(license|licenses|licence|licences <SKUIDList>)|
 		(query <QueryUser>)
 
@@ -537,6 +537,7 @@ config_dir
 	Environment variable: GAMUSERCONFIGDIR
 csv_input_column_delimiter
 	Column delimiter used when reading CSV files; this must be a single character
+	All places where an input CSV file can be specified have an argument columndelimiter <String> that can override this value.
 	Default: ','
 	Environment variable: GAM_CSV_INPUT_COLUMN_DELIMITER 
 csv_output_convert_cr_nl
@@ -546,7 +547,6 @@ csv_output_convert_cr_nl
 	Environment variable: GAM_CSV_OUTPUT_CONVERT_CR_NL
 csv_output_column_delimiter
 	Column delimiter used when writing CSV files; this must be a single character
-	The redirect csv <FileName> [append] [charset <CharSet>] [delimiter <Character>] can override this value.
 	Default: ','
 	Environment variable: GAM_CSV_OUTPUT_COLUMN_DELIMITER
 csv_output_field_delimiter
@@ -633,7 +633,7 @@ gam version [check] [simple]
 gam help
 
 gam batch <FileName>|- [charset <Charset>]
-gam csv <FileName>|- [charset <Charset>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
+gam csv <FileName>|- [charset <Charset>] [columndelimiter <String>] [fields <FieldNameList>] (matchfield <FieldName> <RegularExpression>)* gam <GAMArgumentList>
 
 You can make substitutions in <GAMArgumentList> with values from the CSV file.
 An argument containing exactly ~xxx is replaced by the value of field xxx from the CSV file

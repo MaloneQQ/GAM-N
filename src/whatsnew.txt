@@ -1,3 +1,7 @@
+4.03.13 
+
+Reverted to multi-threading, multi-processing was causing errors.
+
 4.03.12
 
 Added memberscount, managerscount and ownerscount arguments to gam print groups; they cause the number of members/managers/owners to be shown,
