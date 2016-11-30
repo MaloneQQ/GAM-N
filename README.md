@@ -33,7 +33,7 @@ Enter the following gam commands and follow instructions to create the necessary
 
 Installation - Upgrading from a prior version of GAM.
 ----------------------------------------------------------------------------------
-Copy your existing client_secrets.json/oath2.txt/oauth2service.json files to the install directory.
+Copy your existing client_secrets.json/oauth2.txt/oauth2service.json files to the install directory.
 
 Mailing List / Discussion group
 -------------------------------
