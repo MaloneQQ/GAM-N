@@ -1,3 +1,7 @@
+4.03.14
+
+Switched back to multi-processing.
+
 4.03.13 
 
 Reverted to multi-threading, multi-processing was causing errors.
