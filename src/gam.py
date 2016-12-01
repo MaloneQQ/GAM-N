@@ -10197,13 +10197,13 @@ def doUpdateDriveFile(users):
         if media_body:
           result = callGAPI(drive.files(), DRIVE_UPDATE_FILE,
                             fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
-                            addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
+                            addParents=u','.join(parameters[DFA_ADD_PARENTS]), removeParents=u','.join(parameters[DFA_REMOVE_PARENTS]),
                             media_body=media_body, body=body, fields=u'id')
           print u'Successfully updated %s drive file with content from %s' % (result[u'id'], parameters[DFA_LOCALFILENAME])
         else:
           result = callGAPI(drive.files(), DRIVE_PATCH_FILE,
                             fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
-                            addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
+                            addParents=u','.join(parameters[DFA_ADD_PARENTS]), removeParents=u','.join(parameters[DFA_REMOVE_PARENTS]),
                             body=body, fields=u'id')
           print u'Successfully updated drive file/folder ID %s' % (result[u'id'])
     else:
