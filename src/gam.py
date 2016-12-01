@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.14'
+__version__ = u'4.03.15'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -558,6 +558,16 @@ DRIVE_CREATE_PERMISSIONS = u'insert'
 DRIVE_PATCH_PERMISSIONS = u'patch'
 #
 DRIVE_REVISIONS_LIST = u'items'
+#
+DFA_LOCALFILEPATH = u'localFilepath'
+DFA_LOCALFILENAME = u'localFilename'
+DFA_LOCALMIMETYPE = u'localMimeType'
+DFA_CONVERT = u'convert'
+DFA_OCR = u'ocr'
+DFA_OCRLANGUAGE = u'ocrLanguage'
+DFA_PARENTQUERY = u'parentQuery'
+DFA_ADD_PARENTS = u'addParents'
+DFA_REMOVE_PARENTS = u'removeParents'
 # Object BNF names
 OB_ACCESS_TOKEN = u'AccessToken'
 OB_ARGUMENT = u'argument'
@@ -9449,16 +9459,10 @@ MIMETYPE_CHOICES_MAP = {
   u'gspreadsheet': MIMETYPE_GA_SPREADSHEET,
   }
 
-DFA_CONVERT = u'convert'
-DFA_LOCALFILEPATH = u'localFilepath'
-DFA_LOCALFILENAME = u'localFilename'
-DFA_LOCALMIMETYPE = u'localMimeType'
-DFA_OCR = u'ocr'
-DFA_OCRLANGUAGE = u'ocrLanguage'
-DFA_PARENTQUERY = u'parentQuery'
-
 def initializeDriveFileAttributes():
-  return ({}, {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None, DFA_CONVERT: None, DFA_OCR: None, DFA_OCRLANGUAGE: None, DFA_PARENTQUERY: None})
+  return ({}, {DFA_LOCALFILEPATH: None, DFA_LOCALFILENAME: None, DFA_LOCALMIMETYPE: None,
+               DFA_CONVERT: None, DFA_OCR: None, DFA_OCRLANGUAGE: None,
+               DFA_PARENTQUERY: None, DFA_ADD_PARENTS: [], DFA_REMOVE_PARENTS: []})
 
 def getDriveFileAttribute(body, parameters, myarg, update):
   if myarg == u'localfile':
@@ -9500,6 +9504,10 @@ def getDriveFileAttribute(body, parameters, myarg, update):
     body[u'parents'].append({u'id': getString(OB_DRIVE_FOLDER_ID)})
   elif myarg == u'parentname':
     parameters[DFA_PARENTQUERY] = u'"me" in owners and mimeType = "%s" and title = "%s"' % (MIMETYPE_GA_FOLDER, getString(OB_DRIVE_FOLDER_NAME))
+  elif myarg == u'addparents':
+    parameters[DFA_ADD_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID).replace(u',', u' ').split())
+  elif myarg == u'removeparents':
+    parameters[DFA_REMOVE_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID).replace(u',', u' ').split())
   elif myarg == u'writerscantshare':
     body[u'writersCanShare'] = False
   else:
@@ -10188,11 +10196,15 @@ def doUpdateDriveFile(users):
       for fileId in fileIdSelection[u'fileIds']:
         if media_body:
           result = callGAPI(drive.files(), DRIVE_UPDATE_FILE,
-                            fileId=fileId, convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE], media_body=media_body, body=body, fields=u'id')
+                            fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
+                            addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
+                            media_body=media_body, body=body, fields=u'id')
           print u'Successfully updated %s drive file with content from %s' % (result[u'id'], parameters[DFA_LOCALFILENAME])
         else:
           result = callGAPI(drive.files(), DRIVE_PATCH_FILE,
-                            fileId=fileId, convert=parameters[DFA_CONVERT], ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE], body=body, fields=u'id')
+                            fileId=fileId, ocr=parameters[DFA_OCR], ocrLanguage=parameters[DFA_OCRLANGUAGE],
+                            addParents=parameters[DFA_ADD_PARENTS], removeParents=parameters[DFA_REMOVE_PARENTS],
+                            body=body, fields=u'id')
           print u'Successfully updated drive file/folder ID %s' % (result[u'id'])
     else:
       for fileId in fileIdSelection[u'fileIds']:
