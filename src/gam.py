@@ -589,6 +589,7 @@ OB_DRIVE_FILE_ENTITY = u'DriveFileEntity'
 OB_DRIVE_FILE_ID = u'DriveFileID'
 OB_DRIVE_FILE_NAME = u'DriveFileName'
 OB_DRIVE_FOLDER_ID = u'DriveFolderID'
+OB_DRIVE_FOLDER_ID_LIST = u'DriveFolderIDList'
 OB_DRIVE_FOLDER_NAME = u'DriveFolderName'
 OB_EMAIL_ADDRESS = u'EmailAddress'
 OB_EMAIL_ADDRESS_ENTITY = u'EmailAddressEntity'
@@ -9505,9 +9506,9 @@ def getDriveFileAttribute(body, parameters, myarg, update):
   elif myarg == u'parentname':
     parameters[DFA_PARENTQUERY] = u'"me" in owners and mimeType = "%s" and title = "%s"' % (MIMETYPE_GA_FOLDER, getString(OB_DRIVE_FOLDER_NAME))
   elif myarg == u'addparents':
-    parameters[DFA_ADD_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID).replace(u',', u' ').split())
+    parameters[DFA_ADD_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID_LIST).replace(u',', u' ').split())
   elif myarg == u'removeparents':
-    parameters[DFA_REMOVE_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID).replace(u',', u' ').split())
+    parameters[DFA_REMOVE_PARENTS].extend(getString(OB_DRIVE_FOLDER_ID_LIST).replace(u',', u' ').split())
   elif myarg == u'writerscantshare':
     body[u'writersCanShare'] = False
   else:
