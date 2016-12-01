@@ -8,6 +8,8 @@ Added addparents and removeparents arguments to gam update drivefile to allow ad
 	(parentid <DriveFolderID>)|(parentname <FolderName>)|(addparents <DriveFolderIDList>)|(removeparents <DriveFolderIDList>)|writerscantshare
     gam <UserTypeEntity> update drivefile <DriveFileEntity> [copy] [newfilename <DriveFileName>] <DriveFileUpdateAttributes>*
 
+Fixed error in run_batch.
+
 4.03.14
 
 Switched back to multi-processing.

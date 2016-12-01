@@ -3447,6 +3447,8 @@ gam.exe update group announcements add member jsmith
 
 def run_batch(items):
   from multiprocessing import Pool
+  if not items:
+    return
   num_worker_threads = min(len(items), GC_Values[GC_NUM_THREADS])
   pool = Pool(processes=num_worker_threads)
   sys.stderr.write(u'Using %s processes...\n' % num_worker_threads)
