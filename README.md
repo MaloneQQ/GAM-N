@@ -12,7 +12,7 @@ You can download the current GAM-N release from the [GitHub Releases] page.
 
 Download - do a or b or c
 
-a) Single Executable, Mac OS - *.xz
+a) Single Executable, Linux/Mac OS - *.xz
 - Download the archive, extract the contents into some directory.
 - Start a terminal session and cd to the install directory.
 
