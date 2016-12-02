@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.15'
+__version__ = u'4.03.16'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -118,6 +118,7 @@ FN_EXTRA_ARGS_TXT = u'extra-args.txt'
 FN_LAST_UPDATE_CHECK_TXT = u'lastupdatecheck.txt'
 FN_OAUTH2SERVICE_JSON = u'oauth2service.json'
 FN_OAUTH2_TXT = u'oauth2.txt'
+FN_GAMCOMMANDS_TXT = u'GamCommands.txt'
 MY_CUSTOMER = u'my_customer'
 
 # Global variables
@@ -792,6 +793,8 @@ MESSAGE_BATCH_CSV_DASH_DEBUG_INCOMPATIBLE = u'"gam {0} - ..." is not compatible 
 MESSAGE_GAM_EXITING_FOR_UPDATE = u'GAM is now exiting so that you can overwrite this old version with the latest release'
 MESSAGE_GAM_OUT_OF_MEMORY = u'GAM has run out of memory. If this is a large G Suite instance, you should use a 64-bit version of GAM on Windows or a 64-bit version of Python on other systems.'
 MESSAGE_HEADER_NOT_FOUND_IN_CSV_HEADERS = u'Header "{0}" not found in CSV headers of "{1}".'
+MESSAGE_HELP_SYNTAX = u'Help: Syntax in file {0}\n'
+MESSAGE_HELP_WIKI = u'Help: Documentation is at {0}\n'
 MESSAGE_HIT_CONTROL_C_TO_UPDATE = u'\n\nHit CTRL+C to visit the GAM website and download the latest release or wait 15 seconds continue with this boring old version. GAM won\'t bother you with this announcement for 1 week or you can create a file named noupdatecheck.txt in the same location as gam.py or gam.exe and GAM won\'t ever check for updates.'
 MESSAGE_INVALID_JSON = u'The file {0} has an invalid format.'
 MESSAGE_NO_DISCOVERY_INFORMATION = u'No online discovery doc and {0} does not exist locally'
@@ -1018,7 +1021,8 @@ def usageErrorExit(message, extraneous=False):
   else:
     sys.stderr.write(convertUTF8(u'Command: {0} >>><<<\n'.format(makeQuotedList(CL_argv))))
   stderrErrorMsg(message)
-  sys.stderr.write(u'Help: Documentation is at {0}\n'.format(GAM_WIKI))
+  sys.stderr.write(MESSAGE_HELP_SYNTAX.format(os.path.join(GM_Globals[GM_GAM_PATH], FN_GAMCOMMANDS_TXT)))
+  sys.stderr.write(MESSAGE_HELP_WIKI.format(GAM_WIKI))
   sys.exit(USAGE_ERROR_RC)
 
 # Invalid CSV ~Header or ~~Header~~
@@ -3429,21 +3433,8 @@ def doVersion(checkForArgs=True):
 
 def showUsage():
   doVersion(checkForArgs=False)
-  print u'''
-Usage: gam [OPTIONS]...
-
-GAM. Retrieve or set G Suite domain,
-user, group and alias settings. Exhaustive list of commands
-can be found at: https://github.com/jay0lee/GAM/wiki
-
-Examples:
-gam info domain
-gam create user jsmith firstname John lastname Smith password secretpass
-gam update user jsmith suspended on
-gam.exe update group announcements add member jsmith
-...
-
-'''
+  sys.stdout.write(MESSAGE_HELP_SYNTAX.format(os.path.join(GM_Globals[GM_GAM_PATH], FN_GAMCOMMANDS_TXT)))
+  sys.stdout.write(MESSAGE_HELP_WIKI.format(GAM_WIKI))
 
 def run_batch(items):
   from multiprocessing import Pool

@@ -1,3 +1,7 @@
+4.03.16
+
+Give better information on usage error.
+
 4.03.15
 
 Added addparents and removeparents arguments to gam update drivefile to allow adding/removing parents to/from a file.
