@@ -21,6 +21,7 @@ Primatives
 <ProductID> ::= Google-Apps|Google-Drive-storage|Google-Vault|Google-Coordinate
 <SKUID> ::=
 	apps|gafb|gafw|gsbasic|Google-Apps-For-Business|
+	gafg|Google-Apps-For-Government|
 	gams|Google-Apps-For-Postini|
 	gau|unlimited|d4w|dfw|gsbusiness|Google-Apps-Unlimited|
 	lite|Google-Apps-Lite|

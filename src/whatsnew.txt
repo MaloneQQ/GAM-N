@@ -1,6 +1,7 @@
 4.03.16
 
 Give better information on usage error.
+Define Google Product SKU Google-Apps-For-Government (gafg)
 
 4.03.15
 
