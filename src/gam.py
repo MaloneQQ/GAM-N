@@ -8519,27 +8519,27 @@ def doPrintCourseParticipants():
     if showMembers != u'students':
       teacher_message = u' got %%%%num_items%%%% teachers for course %s%s' % (courseId, currentCount(i, count))
       teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers', page_message=teacher_message, courseId=courseId)
+      for teacher in teachers:
+        row = flattenJSON(teacher)
+        row[u'courseId'] = courseId
+        row[u'courseName'] = course[u'name']
+        row[u'userRole'] = u'TEACHER'
+        csvRows.append(row)
+        for item in row:
+          if item not in titles:
+            titles.append(item)
     if showMembers != u'teachers':
       student_message = u' got %%%%num_items%%%% students for course %s%s' % (courseId, currentCount(i, count))
       students = callGAPIpages(croom.courses().students(), u'list', u'students', page_message=student_message, courseId=courseId)
-    for teacher in teachers:
-      row = flattenJSON(teacher)
-      row[u'courseId'] = courseId
-      row[u'courseName'] = course[u'name']
-      row[u'userRole'] = u'TEACHER'
-      csvRows.append(row)
-      for item in row:
-        if item not in titles:
-          titles.append(item)
-    for student in students:
-      row = flattenJSON(student)
-      row[u'courseId'] = courseId
-      row[u'courseName'] = course[u'name']
-      row[u'userRole'] = u'STUDENT'
-      csvRows.append(row)
-      for item in row:
-        if item not in titles:
-          titles.append(item)
+      for student in students:
+        row = flattenJSON(student)
+        row[u'courseId'] = courseId
+        row[u'courseName'] = course[u'name']
+        row[u'userRole'] = u'STUDENT'
+        csvRows.append(row)
+        for item in row:
+          if item not in titles:
+            titles.append(item)
     i += 1
   writeCSVfile(csvRows, titles, u'Course Participants', todrive)
 
