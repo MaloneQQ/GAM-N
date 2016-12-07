@@ -1,3 +1,8 @@
+4.03.17
+
+Added show all|students|teachers argument to gam print courses. This allows you to get course and participant information in the same CSV file.
+    gam print courses [todrive [<ToDriveAttributes>]] [teacher <UserItem>] [student <UserItem>] [alias|aliases] [delimiter <String>] [show all|students|teachers]
+
 4.03.16
 
 Give better information on usage error.

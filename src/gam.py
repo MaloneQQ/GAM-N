@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.16'
+__version__ = u'4.03.17'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -8314,14 +8314,43 @@ def doInfoCourse():
       print convertUTF8(u'  %s' % student[u'profile'][u'name'][u'fullName'])
 
 def doPrintCourses():
+
+  def _saveParticipants(course, participants, role):
+    jcount = len(participants)
+    course[role] = jcount
+    addTitlesToCSVfile([role], titles)
+    j = 0
+    for member in participants:
+      memberTitles = []
+      prefix = u'{0}.{1}.'.format(role, j)
+      profile = member[u'profile']
+      emailAddress = profile.get(u'emailAddress')
+      if emailAddress:
+        memberTitle = prefix+u'emailAddress'
+        course[memberTitle] = emailAddress
+        memberTitles.append(memberTitle)
+      memberId = profile.get(u'id')
+      if memberId:
+        memberTitle = prefix+u'id'
+        course[memberTitle] = memberId
+        memberTitles.append(memberTitle)
+      fullName = profile.get(u'name', {}).get(u'fullName')
+      if fullName:
+        memberTitle = prefix+u'name.fullName'
+        course[memberTitle] = fullName
+        memberTitles.append(memberTitle)
+      addTitlesToCSVfile(memberTitles, titles)
+      j += 1
+
   croom = buildGAPIObject(GAPI_CLASSROOM_API)
   todrive = False
   titles = [u'id',]
   csvRows = []
   teacherId = None
   studentId = None
-  get_aliases = False
+  showAliases = False
   delimiter = GC_Values[GC_CSV_OUTPUT_FIELD_DELIMITER]
+  showMembers = u''
   while CL_argvI < CL_argvLen:
     myarg = getArgument()
     if myarg == u'teacher':
@@ -8331,9 +8360,11 @@ def doPrintCourses():
     elif myarg == u'todrive':
       todrive = True
     elif myarg in [u'alias', u'aliases']:
-      get_aliases = True
+      showAliases = True
     elif myarg == u'delimiter':
       delimiter = getString(OB_STRING, minLen=1, maxLen=1)
+    elif myarg == u'show':
+      showMembers = getChoice([u'all', u'students', u'teachers'])
     else:
       unknownArgumentExit()
   sys.stderr.write(u'Retrieving courses for organization (may take some time for large accounts)...\n')
@@ -8341,15 +8372,34 @@ def doPrintCourses():
   all_courses = callGAPIpages(croom.courses(), u'list', u'courses', page_message=page_message, teacherId=teacherId, studentId=studentId)
   for course in all_courses:
     addRowTitlesToCSVfile(flattenJSON(course), csvRows, titles)
-  if get_aliases:
-    titles.append(u'Aliases')
+  if showAliases or showMembers:
+    if showAliases:
+      titles.append(u'Aliases')
     i = 0
     count = len(csvRows)
     for course in csvRows:
       i += 1
-      sys.stderr.write(u'Getting aliases for course %s%s' % (course[u'id'], currentCountNL(i, count)))
-      course_aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases', courseId=course[u'id'])
-      course[u'Aliases'] = delimiter.join([alias[u'alias'][2:] for alias in course_aliases])
+      courseId = course[u'id']
+      if showAliases:
+        alias_message = u' got %%%%num_items%%%% aliases for course %s%s' % (courseId, currentCount(i, count))
+        course_aliases = callGAPIpages(croom.courses().aliases(), u'list', u'aliases',
+                                       page_message=alias_message,
+                                       courseId=courseId)
+        course[u'Aliases'] = delimiter.join([alias[u'alias'][2:] for alias in course_aliases])
+      if showMembers:
+        if showMembers != u'students':
+          teacher_message = u' got %%%%num_items%%%% teachers for course %s%s' % (courseId, currentCount(i, count))
+          results = callGAPIpages(croom.courses().teachers(), u'list', u'teachers',
+                                  page_message=teacher_message,
+                                  courseId=courseId, fields=u'nextPageToken,teachers(profile)')
+          _saveParticipants(course, results, u'teachers')
+        if showMembers != u'teachers':
+          student_message = u' got %%%%num_items%%%% students for course %s%s' % (courseId, currentCount(i, count))
+          results = callGAPIpages(croom.courses().students(), u'list', u'students',
+                                  page_message=student_message,
+                                  courseId=courseId, fields=u'nextPageToken,students(profile)')
+          _saveParticipants(course, results, u'students')
+  sortCSVTitles([u'id', u'name'], titles)
   writeCSVfile(csvRows, titles, u'Courses', todrive)
 
 ADD_REMOVE_PARTICIPANT_TYPES_MAP = {
@@ -8462,19 +8512,19 @@ def doPrintCourseParticipants():
     all_courses = []
     for course in courses:
       all_courses.append(callGAPI(croom.courses(), u'get', id=course))
-  y = 1
-  num_courses = len(all_courses)
+  i = 1
+  count = len(all_courses)
   for course in all_courses:
-    course_id = course[u'id']
+    courseId = course[u'id']
     if showMembers != u'students':
-      teacher_message = u' got %%%%num_items%%%% teachers for course %s%s' % (course_id, currentCount(y, num_courses))
-      teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers', page_message=teacher_message, courseId=course_id)
+      teacher_message = u' got %%%%num_items%%%% teachers for course %s%s' % (courseId, currentCount(i, count))
+      teachers = callGAPIpages(croom.courses().teachers(), u'list', u'teachers', page_message=teacher_message, courseId=courseId)
     if showMembers != u'teachers':
-      student_message = u' got %%%%num_items%%%% students for course %s%s' % (course_id, currentCount(y, num_courses))
-      students = callGAPIpages(croom.courses().students(), u'list', u'students', page_message=student_message, courseId=course_id)
+      student_message = u' got %%%%num_items%%%% students for course %s%s' % (courseId, currentCount(i, count))
+      students = callGAPIpages(croom.courses().students(), u'list', u'students', page_message=student_message, courseId=courseId)
     for teacher in teachers:
       row = flattenJSON(teacher)
-      row[u'courseId'] = course_id
+      row[u'courseId'] = courseId
       row[u'courseName'] = course[u'name']
       row[u'userRole'] = u'TEACHER'
       csvRows.append(row)
@@ -8483,14 +8533,14 @@ def doPrintCourseParticipants():
           titles.append(item)
     for student in students:
       row = flattenJSON(student)
-      row[u'courseId'] = course_id
+      row[u'courseId'] = courseId
       row[u'courseName'] = course[u'name']
       row[u'userRole'] = u'STUDENT'
       csvRows.append(row)
       for item in row:
         if item not in titles:
           titles.append(item)
-    y += 1
+    i += 1
   writeCSVfile(csvRows, titles, u'Course Participants', todrive)
 
 def encode_multipart(fields, files, boundary=None):
