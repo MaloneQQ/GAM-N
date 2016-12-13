@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.17'
+__version__ = u'4.03.18'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -7493,7 +7493,7 @@ def doUpdateUser(users):
       body[u'emails'] = [{u'type': u'custom', u'customType': u'former_employee', u'primary': False, u'address': user_primary}]
     sys.stdout.write(u'updating user %s...\n' % (user))
     if body:
-      callGAPI(cd.users(), u'patch', userKey=user, body=body)
+      callGAPI(cd.users(), u'update', userKey=user, body=body)
     if admin_body:
       callGAPI(cd.users(), u'makeAdmin', userKey=user, body=admin_body)
 

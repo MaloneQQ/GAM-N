@@ -1,3 +1,7 @@
+4.03.18
+
+Use update instead of patch in gam update user to get around Google bug.
+
 4.03.17
 
 Added show all|students|teachers argument to gam print courses. This allows you to get course and participant information in the same CSV file.
