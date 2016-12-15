@@ -23,7 +23,7 @@ For more information, see https://github.com/taers232c/GAM-N
 """
 
 __author__ = u'Ross Scroggs <ross.scroggs@gmail.com>'
-__version__ = u'4.03.18'
+__version__ = u'4.03.19'
 __license__ = u'Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0)'
 
 import sys
@@ -9284,9 +9284,9 @@ def updateCalendarAttendees(users):
     elif myarg == u'dryrun':
       do_it = False
     elif myarg == u'start':
-      start_date = getYYYYMMDD()
+      start_date = getFullTime()
     elif myarg == u'end':
-      end_date = getYYYYMMDD()
+      end_date = getFullTime()
     elif myarg == u'allevents':
       allevents = True
     else:

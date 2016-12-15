@@ -884,7 +884,7 @@ gam <UserTypeEntity> info calendar <CalendarItem>|primary
 gam <UserTypeEntity> print calendars [todrive]
 
 gam <UserTypeEntity> show calsettings
-gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Date>] [end <Date>] [allevents]
+gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Time>] [end <Time>] [allevents]
 gam <UserTypeEntity> transfer seccals <UserItem> [keepuser]
 
 gam <UserTypeEntity> print|show driveactivity [todrive] [fileid <DriveFileID>] [folderid <DriveFolderID>]

@@ -1,3 +1,8 @@
+4.03.19
+
+Fix update calattendees to use times rather than dates.
+    gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Time>] [end <Time>] [allevents]
+
 4.03.18
 
 Use update instead of patch in gam update user to get around Google bug.
