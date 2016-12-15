@@ -2981,15 +2981,15 @@ def convertEmailToUserID(user):
     return user
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   try:
-    return callGAPI(cd.users(), u'get', throw_reasons=[GAPI_NOT_FOUND, GAPI_FORBIDDEN], userKey=user, fields=u'id')[u'id']
-  except (GAPI_notFound, GAPI_forbidden):
+    return callGAPI(cd.users(), u'get', throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_FORBIDDEN], userKey=user, fields=u'id')[u'id']
+  except (GAPI_userNotFound, GAPI_badRequest, GAPI_forbidden):
     usageErrorExit(u'No such user {0}'.format(user))
 
 def convertUserIDtoEmail(uid):
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   try:
-    return callGAPI(cd.users(), u'get', throw_reasons=[GAPI_NOT_FOUND], userKey=uid, fields=u'primaryEmail')[u'primaryEmail']
-  except GAPI_notFound:
+    return callGAPI(cd.users(), u'get', throw_reasons=[GAPI_USER_NOT_FOUND, GAPI_BAD_REQUEST, GAPI_FORBIDDEN], userKey=uid, fields=u'primaryEmail')[u'primaryEmail']
+  except (GAPI_userNotFound, GAPI_badRequest, GAPI_forbidden):
     return u'uid:{0}'.format(uid)
 #
 # Add domain to foo or convert uid:xxx to foo

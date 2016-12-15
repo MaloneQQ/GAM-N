@@ -1,5 +1,7 @@
 4.03.19
 
+Handle unknown users in print datatransfers.
+
 Fix update calattendees to use times rather than dates.
     gam <UserTypeEntity> update calattendees csv <FileName> [dryrun] [start <Time>] [end <Time>] [allevents]
 
