@@ -4182,7 +4182,7 @@ def doDeleteDomain():
 
 def doInfoDomain():
   if (CL_argvI == CL_argvLen) or (CL_argv[CL_argvI].lower() == u'logo'):
-    doInfoCustomer()
+    doInfoInstance()
     return
   cd = buildGAPIObject(GAPI_DIRECTORY_API)
   domainName = getString(OB_DOMAIN_NAME)
